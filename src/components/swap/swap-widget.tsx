@@ -179,25 +179,20 @@ export default function SwapWidget() {
         {/* Swap direction button */}
         <div className="flex justify-center relative">
           <div className="h-px w-full bg-[#2D3548] absolute top-1/2 transform -translate-y-1/2"></div>
-          <button
+           <button
             onClick={swapTokens}
-            className="w-10 h-10 bg-[#1A1F2E] rounded-full border border-[#2D3548] flex items-center justify-center hover:border-[#AFD803] transition z-10"
+            className="w-10 h-10 bg-[#1A1F2E] rounded-full border border-[#2D3548] flex items-center justify-center hover:border-[#AFD803] hover:text-[#AFD803] text-white transition z-10 cursor-pointer"
             aria-label="Swap tokens"
           >
             <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="18" 
-              height="18" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-              className="text-white"
+              width="21" 
+              height="22" 
+              viewBox="0 0 21 22" 
+              fill="currentColor" 
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <path d="M12 5v14"></path>
-              <path d="m19 12-7 7-7-7"></path>
+              <path d="M6.51043 7.47998V14.99H7.77043V7.47998L9.66043 9.36998L10.5505 8.47994L7.5859 5.51453C7.3398 5.26925 6.94114 5.26925 6.69504 5.51453L3.73047 8.47994L4.62051 9.36998L6.51043 7.47998Z" fill="currentColor"></path>
+              <path d="M14.4902 14.52V7.01001H13.2302V14.52L11.3402 12.63L10.4502 13.5201L13.4148 16.4855C13.6609 16.7308 14.0595 16.7308 14.3056 16.4855L17.2702 13.5201L16.3802 12.63L14.4902 14.52Z" fill="currentColor"></path>
             </svg>
           </button>
         </div>
