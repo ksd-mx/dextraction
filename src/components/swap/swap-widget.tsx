@@ -165,7 +165,7 @@ export default function SwapWidget() {
               value={fromAmount || ''}
               onChange={(e) => setFromAmount(parseFloat(e.target.value) || 0)}
               placeholder="0"
-              className="jupiter-input text-right text-2xl md:text-4xl"
+              className="jupiter-input text-right text-2xl md:text-4xl no-spinner"
             />
           </div>
           

@@ -45,6 +45,18 @@ body {
   background: hsl(var(--secondary));
 }
 
+/* Remove spinner buttons from number inputs */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+/* For Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
 @layer base {
   * {
     @apply border-[hsl(var(--border))];
