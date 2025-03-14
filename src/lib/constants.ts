@@ -1,13 +1,15 @@
-export const APP_NAME = 'DEXTRACTION';
+import { config } from './config';
+
+export const APP_NAME = config.app.name;
 
 // Network settings
-export const SOLANA_NETWORK = 'mainnet-beta';
-export const SOLANA_RPC_URL = 'https://api.mainnet-beta.solana.com';
+export const SOLANA_NETWORK = config.solana.network;
+export const SOLANA_RPC_URL = config.solana.rpcUrl;
 
 // Fee settings
-export const TRADING_FEE_PERCENT = 0.3;
-export const LP_FEE_PERCENT = 0.25;
-export const PROTOCOL_FEE_PERCENT = 0.05;
+export const TRADING_FEE_PERCENT = config.fees.tradingFeePercent;
+export const LP_FEE_PERCENT = config.fees.lpFeePercent;
+export const PROTOCOL_FEE_PERCENT = config.fees.protocolFeePercent;
 
 // Slippage settings
 export const DEFAULT_SLIPPAGE = 0.5;
@@ -39,12 +41,13 @@ export const ROUTES = {
   FARM: '/farm',
   BRIDGE: '/bridge',
   LEND: '/lend',
+  SETTINGS: '/settings',
 };
 
 // Feature flags (for development)
 export const FEATURES = {
-  YIELD_FARMING: true,
-  CROSS_CHAIN_DEPOSITS: true,
-  LENDING: true,
+  YIELD_FARMING: config.features.enableYieldFarming,
+  CROSS_CHAIN_DEPOSITS: config.features.enableCrossChainDeposits,
+  LENDING: config.features.enableLending,
   CHARTS: true,
 };

@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useWallet } from '@/hooks/use-wallet';
-import { X } from 'lucide-react';
+import { X, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface WalletConnectorProps {
   onClose: () => void;
 }
 
 export default function WalletConnector({ onClose }: WalletConnectorProps) {
-  const { availableWallets, connect, isConnecting, connectionError } = useWallet();
+  const { availableWallets, connect, connectionError } = useWallet();
+  const [selectedCategory, setSelectedCategory] = useState<'installed' | 'popular' | 'more'>('installed');
 
   // Close on escape key
   useEffect(() => {
@@ -38,51 +40,146 @@ export default function WalletConnector({ onClose }: WalletConnectorProps) {
     }
   };
 
+  // Group wallets by category
+  const installedWallets = availableWallets.filter(wallet => wallet.id === 'Phantom' || wallet.id === 'Solflare');
+  const popularWallets = availableWallets.filter(wallet => 
+    ['Backpack', 'Glow', 'Brave', 'Coinbase Wallet'].includes(wallet.id)
+  );
+  const moreWallets = availableWallets.filter(wallet => 
+    !installedWallets.concat(popularWallets).find(w => w.id === wallet.id)
+  );
+
+  // Determine which wallets to display based on the selected category
+  const walletsToDisplay = selectedCategory === 'installed' 
+    ? installedWallets 
+    : selectedCategory === 'popular' 
+      ? popularWallets 
+      : moreWallets;
+
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={handleBackdropClick}
     >
-      <div className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-xl max-w-md w-full max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
-        {/* Modal header */}
-        <div className="flex items-center justify-between p-4 border-b border-[hsl(var(--border))]">
-          <h2 className="text-lg font-semibold">Connect Wallet</h2>
-          <button onClick={onClose} className="text-[hsl(var(--muted-foreground))] hover:text-white">
+      <div className="w-full sm:max-w-md sm:rounded-xl bg-[#1B2131] border border-[#2D3548] shadow-xl overflow-auto max-h-[80vh]" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-[#2D3548]">
+          <h2 className="text-base font-medium uppercase tracking-wider">Connect Wallet</h2>
+          <button 
+            onClick={onClose} 
+            className="text-[#94A3B8] hover:text-white p-1 rounded-lg hover:bg-[#2D3548]"
+          >
             <X size={20} />
           </button>
         </div>
         
-        {/* Modal body */}
-        <div className="p-6">
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mb-6">
-            Connect to a Solana wallet to use DEXTRACTION.
+        <div className="p-4">
+          <p className="text-sm uppercase tracking-wider text-[#94A3B8] mb-4">
+            Connect to a Solana wallet to continue
           </p>
           
           {connectionError && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-md text-red-400 text-sm">
-              {connectionError}
+              <div className="flex items-center gap-2">
+                <Info size={14} />
+                <span className="uppercase tracking-wider">{connectionError}</span>
+              </div>
             </div>
           )}
           
-          {/* Wallet list */}
-          <div className="space-y-2">
-            {availableWallets.map((wallet) => (
-              <button
-                key={wallet.id}
-                onClick={() => handleConnect(wallet.id)}
-                className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-[hsl(var(--accent))] transition"
-              >
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-[hsl(var(--card))] rounded-full flex items-center justify-center mr-3">
-                    <span className="font-medium">{wallet.name.charAt(0)}</span>
+          {/* Wallet category tabs */}
+          <div className="flex border-b border-[#2D3548] mb-4">
+            <button 
+              onClick={() => setSelectedCategory('installed')}
+              className={cn(
+                "py-2 px-4 text-sm uppercase tracking-wider transition",
+                selectedCategory === 'installed' 
+                  ? "border-b-2 border-[#AFD803] text-white" 
+                  : "text-[#94A3B8] hover:text-white"
+              )}
+            >
+              Installed
+            </button>
+            <button 
+              onClick={() => setSelectedCategory('popular')}
+              className={cn(
+                "py-2 px-4 text-sm uppercase tracking-wider transition",
+                selectedCategory === 'popular' 
+                  ? "border-b-2 border-[#AFD803] text-white" 
+                  : "text-[#94A3B8] hover:text-white"
+              )}
+            >
+              Popular
+            </button>
+            <button 
+              onClick={() => setSelectedCategory('more')}
+              className={cn(
+                "py-2 px-4 text-sm uppercase tracking-wider transition",
+                selectedCategory === 'more' 
+                  ? "border-b-2 border-[#AFD803] text-white" 
+                  : "text-[#94A3B8] hover:text-white"
+              )}
+            >
+              More
+            </button>
+          </div>
+          
+          {/* Wallet grid */}
+          {walletsToDisplay.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2 mb-6">
+              {walletsToDisplay.map(wallet => (
+                <button
+                  key={wallet.id}
+                  onClick={() => handleConnect(wallet.id)}
+                  className="flex flex-col items-center justify-center gap-2 py-4 rounded-lg bg-[#202535] hover:bg-[#2D3548] transition"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#3D4663] flex items-center justify-center">
+                    {wallet.icon ? (
+                      <img src={wallet.icon} alt={wallet.name} className="w-6 h-6" />
+                    ) : (
+                      <span className="text-lg">{wallet.name.charAt(0)}</span>
+                    )}
                   </div>
-                  <span className="font-medium">{wallet.name}</span>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[hsl(var(--muted-foreground))]">
-                  <path d="M9 18l6-6-6-6"></path>
-                </svg>
+                  <span className="text-xs uppercase tracking-wider">{wallet.name}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="py-6 text-center">
+              <p className="text-[#94A3B8] mb-4 uppercase tracking-wider">
+                {selectedCategory === 'installed' 
+                  ? 'No wallets installed' 
+                  : selectedCategory === 'popular' 
+                    ? 'No popular wallets available' 
+                    : 'No additional wallets available'}
+              </p>
+              
+              <button
+                onClick={() => window.open('https://phantom.app/', '_blank')}
+                className="bg-[#AFD803] hover:bg-[#9DC503] text-[#111827] rounded-lg px-4 py-2 transition font-medium text-sm uppercase tracking-wider"
+              >
+                Get Phantom Wallet
               </button>
-            ))}
+            </div>
+          )}
+          
+          {/* Get a wallet section */}
+          <div className="border-t border-[#2D3548] pt-4">
+            <p className="text-sm uppercase tracking-wider text-[#94A3B8] mb-4">
+              New to Solana?
+            </p>
+            <a 
+              href="https://phantom.app/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-lg bg-[#2D3548] hover:bg-[#3D4663] transition text-sm uppercase tracking-wider"
+            >
+              <img 
+                src="https://phantom.app/img/phantom-logo.svg" 
+                alt="Phantom Logo" 
+                className="w-6 h-6"
+              />
+              <span>Get Phantom Wallet</span>
+            </a>
           </div>
         </div>
       </div>

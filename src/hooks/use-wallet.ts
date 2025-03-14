@@ -1,23 +1,40 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useWalletStore } from '@/store/wallet-store';
-import { delay } from '@/lib/utils';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
+import { WalletName, WalletReadyState } from '@solana/wallet-adapter-base';
+import { showNotification } from '@/store/notification-store';
+import { Wallet } from '@/types/wallet';
 
 export function useWallet() {
   const { 
-    isConnected, 
-    publicKey, 
-    wallet, 
-    availableWallets,
-    connectWallet, 
-    disconnectWallet 
-  } = useWalletStore();
+    wallets,
+    select,
+    disconnect: disconnectWallet,
+    connected,
+    connecting,
+    publicKey,
+    wallet: selectedWallet,
+  } = useSolanaWallet();
   
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [isWalletMenuOpen, setIsWalletMenuOpen] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  
+  // Track connection state to prevent multiple notifications
+  const prevConnectedRef = useRef(false);
+  const notificationShownRef = useRef(false);
+
+  // Format wallets for our UI
+  const availableWallets: Wallet[] = wallets
+    .filter(wallet => wallet.readyState === WalletReadyState.Installed || wallet.readyState === WalletReadyState.Loadable)
+    .map(wallet => ({
+      id: wallet.adapter.name as string,
+      name: wallet.adapter.name,
+      icon: wallet.adapter.icon,
+    }));
 
   const openWalletModal = useCallback(() => {
     setIsWalletModalOpen(true);
+    setIsWalletMenuOpen(false);
     setConnectionError(null);
   }, []);
 
@@ -25,67 +42,105 @@ export function useWallet() {
     setIsWalletModalOpen(false);
   }, []);
 
+  const toggleWalletMenu = useCallback(() => {
+    setIsWalletMenuOpen(prev => !prev);
+  }, []);
+
+  const closeWalletMenu = useCallback(() => {
+    setIsWalletMenuOpen(false);
+  }, []);
+
   const connect = useCallback(async (walletId: string) => {
     try {
-      setIsConnecting(true);
       setConnectionError(null);
+      console.log('Attempting to connect to wallet:', walletId);
       
-      const walletToConnect = availableWallets.find(w => w.id === walletId);
+      const walletToConnect = wallets.find(w => w.adapter.name === walletId);
       
       if (!walletToConnect) {
-        throw new Error('Wallet not found');
+        console.error('Wallet not found:', walletId);
+        throw new Error(`${walletId} wallet not found`);
       }
       
-      // Simulating real wallet connection (would be actual connection in production)
-      await delay(1000); // Simulate connection delay
+      console.log('Found wallet:', walletToConnect.adapter.name);
       
-      // In real implementation, you would check if the wallet is installed
-      // For the demo, we'll assume it's installed and just connect
+      // Reset notification state when attempting to connect
+      notificationShownRef.current = false;
       
-      await connectWallet(walletToConnect);
+      console.log('Selecting wallet:', walletToConnect.adapter.name);
+      select(walletToConnect.adapter.name as WalletName);
       closeWalletModal();
+      
+      console.log('Wallet connection successful');
+      
+      // Show connection notification immediately after successful connection
+      showNotification.success(
+        'WALLET CONNECTED',
+        `Successfully connected to ${walletToConnect.adapter.name}`,
+        { position: 'bottom' }
+      );
+      
       return true;
     } catch (error) {
       console.error('Wallet connection error:', error);
       setConnectionError(error instanceof Error ? error.message : 'Failed to connect wallet');
       return false;
-    } finally {
-      setIsConnecting(false);
     }
-  }, [availableWallets, connectWallet, closeWalletModal]);
+  }, [wallets, select, closeWalletModal]);
+
+  const clearWalletPersistence = useCallback(() => {
+    localStorage.removeItem('walletAdapter');
+    localStorage.removeItem('Phantom');
+  }, []);
 
   const disconnect = useCallback(async () => {
     try {
-      disconnectWallet();
+      await disconnectWallet();
+      closeWalletMenu();
+      clearWalletPersistence();
       return true;
     } catch (error) {
       console.error('Wallet disconnection error:', error);
       return false;
     }
-  }, [disconnectWallet]);
+  }, [disconnectWallet, closeWalletMenu, clearWalletPersistence]);
 
-  // Clean up connection error after a while
+  // Show notification when wallet is connected, but only once per session
   useEffect(() => {
-    if (connectionError) {
-      const timer = setTimeout(() => {
-        setConnectionError(null);
-      }, 5000);
-      
-      return () => clearTimeout(timer);
+    const wasConnected = prevConnectedRef.current;
+    prevConnectedRef.current = connected;
+    
+    // Only show notification when transitioning from disconnected to connected
+    // and notification hasn't been shown already
+    if (connected && !wasConnected && selectedWallet && !notificationShownRef.current) {
+      showNotification.success(
+        'WALLET CONNECTED',
+        `Successfully connected to ${selectedWallet.adapter.name}`,
+        { position: 'bottom' }
+      );
+      notificationShownRef.current = true;
     }
-  }, [connectionError]);
+  }, [connected, selectedWallet]);
 
   return {
-    isConnected,
-    publicKey,
-    wallet,
+    isConnected: connected,
+    isConnecting: connecting,
+    publicKey: publicKey?.toBase58(),
+    wallet: selectedWallet ? {
+      id: selectedWallet.adapter.name,
+      name: selectedWallet.adapter.name,
+      icon: selectedWallet.adapter.icon,
+    } : null,
     availableWallets,
     isWalletModalOpen,
+    isWalletMenuOpen,
     openWalletModal,
     closeWalletModal,
+    toggleWalletMenu,
+    closeWalletMenu,
     connect,
     disconnect,
-    isConnecting,
+    clearWalletPersistence,
     connectionError,
   };
 }

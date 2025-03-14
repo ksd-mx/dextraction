@@ -10,12 +10,28 @@ interface WalletState {
   disconnectWallet: () => void;
 }
 
-// Mock wallet data
+// Updated wallet data with improved information
 const mockWallets: Wallet[] = [
-  { id: 'phantom', name: 'Phantom', icon: '' },
-  { id: 'solflare', name: 'Solflare', icon: '' },
-  { id: 'backpack', name: 'Backpack', icon: '' },
-  { id: 'glow', name: 'Glow', icon: '' },
+  { 
+    id: 'phantom', 
+    name: 'Phantom',
+    icon: '/icons/phantom.svg' // Would need to add these icons to public/icons/
+  },
+  { 
+    id: 'solflare', 
+    name: 'Solflare',
+    icon: '/icons/solflare.svg'
+  },
+  { 
+    id: 'backpack', 
+    name: 'Backpack',
+    icon: '/icons/backpack.svg'
+  },
+  { 
+    id: 'glow', 
+    name: 'Glow',
+    icon: '/icons/glow.svg'
+  },
 ];
 
 export const useWalletStore = create<WalletState>((set) => ({
@@ -26,13 +42,12 @@ export const useWalletStore = create<WalletState>((set) => ({
   
   connectWallet: async (wallet: Wallet) => {
     // This would connect to the wallet in a real implementation
-    // For now, it simulates a successful connection
     try {
-      // Simulate connection delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Generate a fake public key
-      const publicKey = `${wallet.id}_${Math.random().toString(36).substring(2, 10)}`;
+      // Generate a fake public key that looks like a Solana address
+      const randomStr = Array.from(Array(32), () => Math.floor(Math.random() * 16).toString(16)).join('');
+      const publicKey = wallet.id === 'phantom' 
+        ? `${wallet.id}_${randomStr.substring(0, 32)}`
+        : `${wallet.id}_${Math.random().toString(36).substring(2, 10)}`;
       
       set({
         isConnected: true,
@@ -40,10 +55,16 @@ export const useWalletStore = create<WalletState>((set) => ({
         wallet,
       });
       
-      console.log(`Connected to ${wallet.name} wallet`);
+      console.log(`Connected to ${wallet.name} wallet with public key ${publicKey}`);
+      
+      // Store in session storage
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('connected_wallet', wallet.id);
+        sessionStorage.setItem('public_key', publicKey);
+      }
     } catch (error) {
       console.error('Failed to connect wallet:', error);
-      // In a real app, we would handle the error and show a message to the user
+      throw error;
     }
   },
   
@@ -53,6 +74,13 @@ export const useWalletStore = create<WalletState>((set) => ({
       publicKey: null,
       wallet: null,
     });
+    
+    // Clear session storage
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('connected_wallet');
+      sessionStorage.removeItem('public_key');
+    }
+    
     console.log('Wallet disconnected');
   },
 }));
