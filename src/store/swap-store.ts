@@ -1,30 +1,99 @@
 import { create } from 'zustand';
 import { DEFAULT_SLIPPAGE } from '@/lib/constants';
-import { Token } from '@/types/token';
-import { delay } from '@/lib/utils';
+import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { useTokenStore } from './token-store';
 import { showNotification } from './notification-store';
+import { TokenInfo } from '@/types/token';
+import { config } from '@/lib/config';
+import { getSwapQuote, getSwapTransaction } from '@/api/swap-api';
+import { debounce, DebouncedFunc } from 'lodash';
+import { SwapQuoteResponse } from '@/types/market';
+import { MarketInfo } from '@/types/market';
+
+export type TransactionStatus = 'none' | 'processing' | 'success' | 'error';
+
+export interface TransactionInfo {
+  signature?: string;
+  status: TransactionStatus;
+  error?: string;
+}
 
 interface SwapState {
-  fromToken: Token | null;
-  toToken: Token | null;
+  fromToken: TokenInfo | null;
+  toToken: TokenInfo | null;
   fromAmount: number;
   estimatedOutput: number;
   slippage: number;
   priceImpact: number;
   isLoading: boolean;
   isConnected: boolean;
+  lastQuoteResponse: SwapQuoteResponse | null;
+  marketInfos: MarketInfo[];
+  transaction: TransactionInfo;
   
-  setFromToken: (token: Token) => void;
-  setToToken: (token: Token) => void;
+  setFromToken: (token: TokenInfo) => void;
+  setToToken: (token: TokenInfo) => void;
   setFromAmount: (amount: number) => void;
   setSlippage: (slippage: number) => void;
   swapTokens: () => void;
   fetchPrice: () => Promise<void>;
-  handleSwap: () => Promise<boolean>;
+  handleSwap: (walletState: { publicKey: string | undefined, signTransaction: (transaction: Transaction) => Promise<Transaction> }) => Promise<boolean>;
   setConnected: (connected: boolean) => void;
   initializeDefaultTokens: () => void;
+  resetTransactionState: () => void;
 }
+
+type SetState = (state: Partial<SwapState>) => void;
+
+// Debounced version of the fetchPrice function to avoid too many API calls
+const debouncedFetchPrice: DebouncedFunc<(state: SwapState, set: SetState) => Promise<void>> = debounce(async (state, set) => {
+  const { fromToken, toToken, fromAmount, slippage } = state;
+  
+  if (!fromToken || !toToken || fromAmount <= 0) {
+    set({ estimatedOutput: 0, priceImpact: 0, isLoading: false });
+    return;
+  }
+  
+  try {
+    // Convert amount to lamports/smallest unit using token decimals
+    const inputDecimals = fromToken.decimals;
+    const inputAmount = Math.floor(fromAmount * (10 ** inputDecimals));
+    
+    // Get quote from Jupiter
+    const quoteResponse = await getSwapQuote({
+      inputMint: fromToken.address,
+      outputMint: toToken.address,
+      amount: inputAmount,
+      slippageBps: slippage,
+    });
+    
+    // Convert output amount from lamports/smallest unit back to token amount
+    const outputDecimals = toToken.decimals;
+    const outputAmount = Number(quoteResponse.outAmount) / (10 ** outputDecimals);
+    
+    set({ 
+      estimatedOutput: outputAmount,
+      priceImpact: quoteResponse.priceImpactPct,
+      lastQuoteResponse: quoteResponse,
+      isLoading: false
+    });
+  } catch (error) {
+    console.error('Error fetching price:', error);
+    set({ 
+      estimatedOutput: 0, 
+      priceImpact: 0, 
+      lastQuoteResponse: null,
+      isLoading: false 
+    });
+    
+    if (error instanceof Error) {
+      showNotification.error(
+        'Quote Error', 
+        error.message
+      );
+    }
+  }
+}, 500);
 
 export const useSwapStore = create<SwapState>((set, get) => ({
   fromToken: null,
@@ -35,17 +104,50 @@ export const useSwapStore = create<SwapState>((set, get) => ({
   priceImpact: 0,
   isLoading: false,
   isConnected: false,
+  lastQuoteResponse: null,
+  marketInfos: [],
+  transaction: {
+    status: 'none',
+    signature: undefined,
+    error: undefined
+  },
+  
+  resetTransactionState: () => {
+    set({
+      transaction: {
+        status: 'none',
+        signature: undefined,
+        error: undefined
+      }
+    });
+  },
   
   initializeDefaultTokens: () => {
     const tokenStore = useTokenStore.getState();
-    const solToken = tokenStore.getTokenBySymbol('SOL');
-    const usdcToken = tokenStore.getTokenBySymbol('USDC');
     
-    if (solToken && usdcToken) {
-      set({
-        fromToken: solToken,
-        toToken: usdcToken,
+    // Ensure tokens are loaded
+    if (tokenStore.tokens.length === 0) {
+      tokenStore.fetchAllTokens().then(() => {
+        const solToken = tokenStore.getTokenBySymbol('SOL');
+        const usdcToken = tokenStore.getTokenBySymbol('USDC');
+        
+        if (solToken && usdcToken) {
+          set({
+            fromToken: solToken,
+            toToken: usdcToken,
+          });
+        }
       });
+    } else {
+      const solToken = tokenStore.getTokenBySymbol('SOL');
+      const usdcToken = tokenStore.getTokenBySymbol('USDC');
+      
+      if (solToken && usdcToken) {
+        set({
+          fromToken: solToken,
+          toToken: usdcToken,
+        });
+      }
     }
   },
   
@@ -53,11 +155,11 @@ export const useSwapStore = create<SwapState>((set, get) => ({
     set({ isConnected: connected });
   },
   
-  setFromToken: (token: Token) => {
+  setFromToken: (token: TokenInfo) => {
     const { toToken } = get();
     
     // Prevent selecting the same token
-    if (toToken && token.symbol === toToken.symbol) {
+    if (toToken && token.address === toToken.address) {
       set({
         fromToken: token,
         toToken: null,
@@ -66,17 +168,24 @@ export const useSwapStore = create<SwapState>((set, get) => ({
       set({ fromToken: token });
     }
     
+    // Reset price quote when token changes
+    set({
+      estimatedOutput: 0,
+      priceImpact: 0,
+      lastQuoteResponse: null,
+    });
+    
     // Recalculate price if both tokens are selected
     if (get().toToken && get().fromAmount > 0) {
       get().fetchPrice();
     }
   },
   
-  setToToken: (token: Token) => {
+  setToToken: (token: TokenInfo) => {
     const { fromToken } = get();
     
     // Prevent selecting the same token
-    if (fromToken && token.symbol === fromToken.symbol) {
+    if (fromToken && token.address === fromToken.address) {
       set({
         toToken: token,
         fromToken: null,
@@ -84,6 +193,13 @@ export const useSwapStore = create<SwapState>((set, get) => ({
     } else {
       set({ toToken: token });
     }
+    
+    // Reset price quote when token changes
+    set({
+      estimatedOutput: 0,
+      priceImpact: 0,
+      lastQuoteResponse: null,
+    });
     
     // Recalculate price if both tokens are selected
     if (get().fromToken && get().fromAmount > 0) {
@@ -94,9 +210,17 @@ export const useSwapStore = create<SwapState>((set, get) => ({
   setFromAmount: (amount: number) => {
     set({ fromAmount: amount });
     
+    // Reset price quote when amount changes significantly
+    set({
+      estimatedOutput: 0,
+      priceImpact: 0,
+      lastQuoteResponse: null,
+    });
+    
     // Recalculate price if both tokens are selected
     if (get().fromToken && get().toToken && amount > 0) {
-      get().fetchPrice();
+      set({ isLoading: true });
+      debouncedFetchPrice(get(), set);
     } else if (amount === 0) {
       set({ estimatedOutput: 0, priceImpact: 0 });
     }
@@ -109,15 +233,25 @@ export const useSwapStore = create<SwapState>((set, get) => ({
     if (typeof window !== 'undefined') {
       localStorage.setItem('slippage', slippage.toString());
     }
+    
+    // Recalculate price with new slippage if we have tokens and amount
+    const { fromToken, toToken, fromAmount } = get();
+    if (fromToken && toToken && fromAmount > 0) {
+      get().fetchPrice();
+    }
   },
   
   swapTokens: () => {
     const { fromToken, toToken } = get();
     
+    if (!fromToken || !toToken) return;
+    
     set({ 
       fromToken: toToken,
       toToken: fromToken,
       estimatedOutput: 0,
+      priceImpact: 0,
+      lastQuoteResponse: null,
     });
     
     // Recalculate price if both tokens are selected
@@ -135,78 +269,122 @@ export const useSwapStore = create<SwapState>((set, get) => ({
     
     set({ isLoading: true });
     
-    try {
-      // In a real implementation, we would fetch price from a DEX API
-      // For now, simulate a network request
-      await delay(500);
-      
-      // Mock price calculation based on token prices
-      // In reality, this would use AMM formulas, liquidity, etc.
-      const mockExchangeRate = fromToken.price / toToken.price;
-      
-      // Add some random variance to the price for demonstration
-      const variance = 0.97 + Math.random() * 0.06; // 0.97 to 1.03
-      const calculatedOutput = fromAmount * mockExchangeRate * variance;
-      
-      // Calculate a mock price impact (higher for larger amounts)
-      // In a real DEX, this would be calculated based on pool reserves
-      const impact = Math.min(fromAmount / 100, 10) * variance;
-      
-      set({ 
-        estimatedOutput: calculatedOutput,
-        priceImpact: impact,
-        isLoading: false,
-      });
-    } catch (error) {
-      console.error('Error fetching price:', error);
-      set({ isLoading: false });
-    }
+    // Actual fetch is delegated to the debounced function
+    // But we call it directly here for immediate feedback
+    await debouncedFetchPrice(get(), set);
   },
   
-  handleSwap: async () => {
-    const { fromToken, toToken, fromAmount, isConnected } = get();
+  handleSwap: async (walletState: { publicKey: string | undefined, signTransaction: (transaction: Transaction) => Promise<Transaction> }) => {
+    const { fromToken, toToken, fromAmount, lastQuoteResponse, isConnected } = get();
+    console.log('Estimated output:', get().estimatedOutput);
     
-    if (!isConnected) {
+    if (!isConnected || !walletState.publicKey) {
       // This will be handled by the UI to open wallet modal
       return false;
     }
     
-    if (!fromToken || !toToken || fromAmount <= 0) {
+    if (!fromToken || !toToken || fromAmount <= 0 || !lastQuoteResponse) {
+      showNotification.error(
+        'SWAP ERROR', 
+        'Please enter a valid amount and get a quote first'
+      );
       return false;
     }
     
-    // In a real implementation, this would call a DEX API to execute the swap
+    set({ 
+      isLoading: true,
+      transaction: {
+        status: 'processing',
+        signature: undefined,
+        error: undefined
+      }
+    });
+    
     try {
-      set({ isLoading: true });
+      // Get the swap transaction
+      const transactionResponse = await getSwapTransaction({
+        quoteResponse: lastQuoteResponse,
+        userPublicKey: walletState.publicKey
+      });
       
-      // Simulate a network request
-      await delay(1500);
-      
-      // Show success notification
-      showNotification.success(
-        'SWAP SUCCESSFUL',
-        `Swapped ${fromAmount} ${fromToken.symbol} to ${get().estimatedOutput.toFixed(4)} ${toToken.symbol}`
+      // Deserialize the transaction
+      const swapTransaction = Transaction.from(
+        Buffer.from(transactionResponse.swapTransaction, 'base64')
       );
       
-      // Reset input after successful swap
-      set({ 
-        fromAmount: 0,
-        estimatedOutput: 0,
-        priceImpact: 0,
-        isLoading: false,
+      // Connect to the Solana network
+      const connection = new Connection(config.solana.rpcUrl);
+      
+      // Get the latest blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      swapTransaction.recentBlockhash = blockhash;
+      swapTransaction.feePayer = new PublicKey(walletState.publicKey);
+      
+      // Request signature from the wallet adapter
+      const signedTransaction = await walletState.signTransaction(swapTransaction);
+      
+      // Submit the transaction
+      const signature = await connection.sendRawTransaction(
+        signedTransaction.serialize()
+      );
+      
+      // Update transaction state with signature
+      set({
+        transaction: {
+          status: 'processing',
+          signature: signature,
+          error: undefined
+        }
       });
+      
+      // Show notification with signature
+      showNotification.info(
+        'TRANSACTION SUBMITTED',
+        `Transaction sent: ${signature.substring(0, 8)}...`,
+        {
+          autoClose: true,
+          duration: 5000,
+        }
+      );
+      
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature);
+      
+      if (confirmation.value.err) {
+        throw new Error('Transaction failed to confirm');
+      }
+      
+      // Update transaction state to success
+      set({
+        transaction: {
+          status: 'success',
+          signature: signature,
+          error: undefined
+        },
+        isLoading: false
+      });
+      
+      // Refresh token balances
+      setTimeout(() => {
+        if (walletState.publicKey) {
+          useTokenStore.getState().fetchTokenBalances(walletState.publicKey);
+        }
+      }, 2000);
       
       return true;
     } catch (error) {
       console.error('Swap failed:', error);
       
-      // Show error notification
-      showNotification.error(
-        'SWAP FAILED',
-        error instanceof Error ? error.message : 'An error occurred during the swap'
-      );
+      // Update transaction state to error
+      set({
+        transaction: {
+          status: 'error',
+          signature: get().transaction.signature,
+          error: error instanceof Error ? error.message : 'An error occurred during the swap'
+        },
+        isLoading: false
+      });
       
-      set({ isLoading: false });
       return false;
     }
   },

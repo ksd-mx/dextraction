@@ -1,17 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, RefreshCw, Info } from 'lucide-react';
+import { Settings, RefreshCw, ArrowRight } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
-import { cn, formatNumber } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import SettingsModal from '@/components/swap/settings-modal';
-import TokenSelector from '@/components/swap/token-selector';
 import { useSwapStore } from '@/store/swap-store';
 import { useTokenStore } from '@/store/token-store';
+import { TokenInfo } from '@/types/token';
+import TokenSelector from '@/components/swap/token-selector';
+import TokenAmountInput from '@/components/swap/token-amount-input';
+import SwapStats from '@/components/swap/swap-stats';
 
 export default function SwapWidget() {
-  const { isConnected, openWalletModal, publicKey } = useWallet();
-  const { fetchTokenBalances } = useTokenStore();
+  const { isConnected, openWalletModal, publicKey, signTransaction } = useWallet();
+  const { fetchTokenBalances, fetchAllTokens, tokens, isLoadingTokens } = useTokenStore();
   const { 
     fromToken, 
     toToken, 
@@ -30,15 +33,24 @@ export default function SwapWidget() {
     initializeDefaultTokens
   } = useSwapStore();
   
+  // Fetch token list on initial load
+  useEffect(() => {
+    if (tokens.length === 0 && !isLoadingTokens) {
+      fetchAllTokens();
+    }
+  }, [tokens.length, fetchAllTokens, isLoadingTokens]);
+  
   // Sync wallet connection state with swap store
   useEffect(() => {
     setConnected(isConnected);
   }, [isConnected, setConnected]);
   
-  // Initialize default token selections (SOL -> USDC)
+  // Initialize default token selections after tokens are loaded
   useEffect(() => {
-    initializeDefaultTokens();
-  }, [initializeDefaultTokens]);
+    if (tokens.length > 0 && !fromToken && !toToken) {
+      initializeDefaultTokens();
+    }
+  }, [tokens, fromToken, toToken, initializeDefaultTokens]);
 
   // Fetch token balances when wallet is connected
   useEffect(() => {
@@ -64,7 +76,7 @@ export default function SwapWidget() {
       return;
     }
     
-    const success = await handleSwap();
+    const success = await handleSwap({ publicKey, signTransaction });
     if (success) {
       // Refresh token balances after swap
       if (publicKey) {
@@ -81,7 +93,6 @@ export default function SwapWidget() {
   };
   
   const hasError = priceImpact > 15;
-  const hasWarning = priceImpact > 5 && priceImpact <= 15;
   
   return (
     <div className="jupiter-card overflow-hidden shadow-lg">
@@ -113,72 +124,19 @@ export default function SwapWidget() {
       
       <div className="p-4 space-y-1">
         {/* Selling section */}
-        <div className="bg-[#1A1F2E] rounded-lg p-4">
-          <div className="flex justify-between mb-3">
-            <span className="text-sm font-medium uppercase tracking-wider">Selling</span>
-            <div className="flex items-center gap-2">
-              <button 
-                className="px-3 py-1 bg-[#2D3548] rounded-md text-xs font-medium text-[#94A3B8] hover:text-white hover:bg-[#3D4663] transition uppercase tracking-wider hover:cursor-pointer"
-                onClick={() => fromToken && setFromAmount(fromToken.balance / 2)}
-                disabled={!isConnected || !fromToken || fromToken.balance <= 0}
-              >
-                HALF
-              </button>
-              <button 
-                className="px-3 py-1 bg-[#2D3548] rounded-md text-xs font-medium text-[#94A3B8] hover:text-white hover:bg-[#3D4663] transition uppercase tracking-wider hover:cursor-pointer"
-                onClick={() => fromToken && setFromAmount(fromToken.balance)}
-                disabled={!isConnected || !fromToken || fromToken.balance <= 0}
-              >
-                MAX
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={() => setIsFromSelectorOpen(true)}
-              className="token-button"
-            >
-              {fromToken ? (
-                <>
-                  <div className="token-icon">
-                    {fromToken.symbol.charAt(0)}
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <span className="font-semibold uppercase tracking-wider">{fromToken.symbol}</span>
-                  </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#94A3B8] ml-1">
-                    <path d="m6 9 6 6 6-6"></path>
-                  </svg>
-                </>
-              ) : (
-                <>
-                  <div className="token-icon">
-                    $
-                  </div>
-                  <span className="font-medium uppercase tracking-wider">Select token</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#94A3B8] ml-1">
-                    <path d="m6 9 6 6 6-6"></path>
-                  </svg>
-                </>
-              )}
-            </button>
-            
-            <input
-              type="number"
-              value={fromAmount || ''}
-              onChange={(e) => setFromAmount(parseFloat(e.target.value) || 0)}
-              placeholder="0"
-              className="jupiter-input text-right text-2xl md:text-4xl no-spinner"
-            />
-          </div>
-          
-          {fromToken && (
-            <div className="text-right text-sm text-[#94A3B8] mt-1 uppercase tracking-wider">
-              Balance: {isConnected ? formatNumber(fromToken.balance, 4) : '0'} {fromToken.symbol}
-            </div>
-          )}
-        </div>
+        <TokenAmountInput 
+          label="You Pay"
+          token={fromToken}
+          amount={fromAmount}
+          isConnected={isConnected}
+          isLoadingTokens={isLoadingTokens}
+          showBalanceButtons={true}
+          estimatedValue={fromToken?.price ? fromToken.price * fromAmount : undefined}
+          onTokenSelect={() => setIsFromSelectorOpen(true)}
+          onAmountChange={setFromAmount}
+          onMaxClick={() => fromToken && setFromAmount(fromToken.balance)}
+          onHalfClick={() => fromToken && setFromAmount(fromToken.balance / 2)}
+        />
         
         {/* Swap direction button */}
         <div className="flex justify-center relative">
@@ -202,96 +160,37 @@ export default function SwapWidget() {
         </div>
         
         {/* Buying section */}
-        <div className="bg-[#1A1F2E] rounded-lg p-4">
-          <div className="flex justify-between mb-3">
-            <span className="text-sm font-medium uppercase tracking-wider">Buying</span>
-            {toToken && (
-              <span className="text-sm text-[#94A3B8] uppercase tracking-wider">
-                Balance: {isConnected ? formatNumber(toToken.balance, 4) : '0'} {toToken.symbol}
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={() => setIsToSelectorOpen(true)}
-              className="token-button"
-            >
-              {toToken ? (
-                <>
-                  <div className="token-icon">
-                    {toToken.symbol.charAt(0)}
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <span className="font-semibold uppercase tracking-wider">{toToken.symbol}</span>
-                  </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#94A3B8] ml-1">
-                    <path d="m6 9 6 6 6-6"></path>
-                  </svg>
-                </>
-              ) : (
-                <>
-                  <div className="token-icon">
-                    ?
-                  </div>
-                  <span className="font-medium uppercase tracking-wider">Select token</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#94A3B8] ml-1">
-                    <path d="m6 9 6 6 6-6"></path>
-                  </svg>
-                </>
-              )}
-            </button>
-            
-            <div className="text-right text-2xl md:text-4xl">
-              {estimatedOutput ? formatNumber(estimatedOutput, 6) : '0.00'}
-            </div>
-          </div>
-          
-          {toToken && fromToken && fromAmount > 0 && (
-            <div className="text-right text-sm text-[#94A3B8] mt-1 uppercase tracking-wider">
-              ≈ ${(estimatedOutput * toToken.price).toFixed(2)}
-            </div>
-          )}
-        </div>
+        <TokenAmountInput 
+          label="You Receive"
+          token={toToken}
+          amount={estimatedOutput}
+          isConnected={isConnected}
+          isLoadingTokens={isLoadingTokens}
+          isOutput={true}
+          isLoading={isLoading}
+          estimatedValue={toToken?.price ? toToken.price * estimatedOutput : undefined}
+          onTokenSelect={() => setIsToSelectorOpen(true)}
+        />
         
         {/* Price and impact info */}
-        {fromToken && toToken && fromAmount > 0 && estimatedOutput > 0 && (
-          <div className="bg-[#1A1F2E] rounded-lg p-3 space-y-1 mt-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[#94A3B8] uppercase tracking-wider">Price</span>
-              <span className="text-sm uppercase tracking-wider">
-                1 {fromToken.symbol} = {formatNumber(estimatedOutput / fromAmount, 6)} {toToken.symbol}
-              </span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-[#94A3B8] uppercase tracking-wider">Price Impact</span>
-                <Info size={12} className="text-[#94A3B8]" />
-              </div>
-              <span className={cn(
-                "text-sm uppercase tracking-wider", 
-                hasError ? "text-red-500" : hasWarning ? "text-yellow-500" : "text-green-500"
-              )}>
-                {formatNumber(priceImpact, 2)}%
-              </span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[#94A3B8] uppercase tracking-wider">Slippage Tolerance</span>
-              <span className="text-sm uppercase tracking-wider">{slippage}%</span>
-            </div>
-          </div>
-        )}
+        <SwapStats 
+          fromToken={fromToken}
+          toToken={toToken}
+          fromAmount={fromAmount}
+          estimatedOutput={estimatedOutput}
+          priceImpact={priceImpact}
+          slippage={slippage}
+          onSwapDirectionChange={swapTokens}
+        />
         
         {/* Swap button */}
         <button
           onClick={handleSwapClick}
-          disabled={!isConnected || !fromToken || !toToken || fromAmount <= 0 || estimatedOutput <= 0 || hasError || (isConnected && fromToken && fromToken.balance < fromAmount)}
+          disabled={!isConnected || !fromToken || !toToken || fromAmount <= 0 || estimatedOutput <= 0 || hasError || isLoading || (isConnected && fromToken && fromToken.balance < fromAmount)}
           className={cn(
             "w-full py-4 px-4 rounded-lg font-semibold text-lg transition mt-3 uppercase tracking-wider",
             isConnected 
-              ? (!fromToken || !toToken || fromAmount <= 0)
+              ? (!fromToken || !toToken || fromAmount <= 0 || isLoading)
                 ? "bg-[#566040] text-white opacity-70 cursor-not-allowed"
                 : (fromToken && fromToken.balance < fromAmount)
                   ? "bg-[#566040] text-white opacity-70 cursor-not-allowed" 
@@ -302,12 +201,12 @@ export default function SwapWidget() {
         >
           {!isConnected 
             ? "Connect Wallet" 
-            : (fromToken && fromToken.balance < fromAmount)
-              ? "Insufficient Balance"
-              : hasError 
-                ? "Price Impact Too High" 
-                : isLoading 
-                  ? "Calculating..." 
+            : isLoading
+              ? "Calculating..."
+              : (fromToken && fromToken.balance < fromAmount)
+                ? "Insufficient Balance"
+                : hasError 
+                  ? "Price Impact Too High" 
                   : "Swap"}
         </button>
       </div>
@@ -325,7 +224,7 @@ export default function SwapWidget() {
             setFromToken(token);
             setIsFromSelectorOpen(false);
           }}
-          excludeToken={toToken}
+          excludeToken={toToken as TokenInfo}
         />
       )}
       
@@ -336,7 +235,7 @@ export default function SwapWidget() {
             setToToken(token);
             setIsToSelectorOpen(false);
           }}
-          excludeToken={fromToken}
+          excludeToken={fromToken as TokenInfo}
         />
       )}
     </div>

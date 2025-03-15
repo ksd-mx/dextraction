@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { WalletName, WalletReadyState } from '@solana/wallet-adapter-base';
+import { Transaction, Connection } from '@solana/web3.js';
 import { showNotification } from '@/store/notification-store';
 import { Wallet } from '@/types/wallet';
 
@@ -13,6 +14,8 @@ export function useWallet() {
     connecting,
     publicKey,
     wallet: selectedWallet,
+    signTransaction: solanaSignTransaction,
+    sendTransaction: solanaSendTransaction 
   } = useSolanaWallet();
   
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
@@ -49,6 +52,44 @@ export function useWallet() {
   const closeWalletMenu = useCallback(() => {
     setIsWalletMenuOpen(false);
   }, []);
+
+  // Sign a transaction using the connected wallet
+  const signTransaction = useCallback(async (transaction: Transaction) => {
+    if (!connected || !solanaSignTransaction) {
+      throw new Error('Wallet not connected or does not support signing');
+    }
+    
+    try {
+      return await solanaSignTransaction(transaction);
+    } catch (error) {
+      console.error('Failed to sign transaction:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('User rejected')) {
+          throw new Error('Transaction rejected by user');
+        }
+      }
+      throw error;
+    }
+  }, [connected, solanaSignTransaction]);
+
+  // Send a transaction using the connected wallet
+  const sendTransaction = useCallback(async (transaction: Transaction) => {
+    if (!connected || !solanaSendTransaction) {
+      throw new Error('Wallet not connected or does not support sending transactions');
+    }
+    
+    try {
+      return await solanaSendTransaction(transaction, new Connection('https://api.mainnet-beta.solana.com'));
+    } catch (error) {
+      console.error('Failed to send transaction:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('User rejected')) {
+          throw new Error('Transaction rejected by user');
+        }
+      }
+      throw error;
+    }
+  }, [connected, solanaSendTransaction]);
 
   const connect = useCallback(async (walletId: string) => {
     try {
@@ -91,6 +132,7 @@ export function useWallet() {
   const clearWalletPersistence = useCallback(() => {
     localStorage.removeItem('walletAdapter');
     localStorage.removeItem('Phantom');
+    localStorage.removeItem('walletName');
   }, []);
 
   const disconnect = useCallback(async () => {
@@ -142,5 +184,7 @@ export function useWallet() {
     disconnect,
     clearWalletPersistence,
     connectionError,
+    signTransaction,
+    sendTransaction
   };
 }

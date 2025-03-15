@@ -1,27 +1,46 @@
-'use client';
-
 import { useState, useEffect } from 'react';
-import { X, Search, Star } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { X, Search, Loader2, Star } from 'lucide-react';
+import { cn, formatNumber } from '@/lib/utils';
 import { useTokenStore } from '@/store/token-store';
-import { Token } from '@/types/token';
+import { TokenInfo } from '@/types/token';
+import TokenRow from './token-row';
+import Image from 'next/image';
 
 interface TokenSelectorProps {
   onClose: () => void;
-  onSelect: (token: Token) => void;
-  excludeToken?: Token | null;
+  onSelect: (token: TokenInfo) => void;
+  excludeToken?: TokenInfo | null;
 }
 
 export default function TokenSelector({ onClose, onSelect, excludeToken }: TokenSelectorProps) {
-  const { tokens, favoriteTokens, toggleFavorite } = useTokenStore();
+  const { tokens, favoriteTokens, toggleFavorite, popularTokens, fetchAllTokens, isLoadingTokens } = useTokenStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'popular'>('all');
   
-  // Filter tokens based on search and excluded token
+  // Fetch tokens if not already loaded
+  useEffect(() => {
+    if (tokens.length === 0 && !isLoadingTokens) {
+      fetchAllTokens();
+    }
+  }, [tokens.length, fetchAllTokens, isLoadingTokens]);
+  
+  // Filter tokens based on search, excluded token, and active tab
   const filteredTokens = tokens.filter(token => {
-    if (excludeToken && token.symbol === excludeToken.symbol) {
+    // Exclude the token that's already selected in the other input
+    if (excludeToken && token.address === excludeToken.address) {
       return false;
     }
     
+    // Filter based on active tab
+    if (activeTab === 'favorites' && !favoriteTokens.includes(token.address)) {
+      return false;
+    }
+    
+    if (activeTab === 'popular' && !popularTokens.includes(token.address)) {
+      return false;
+    }
+    
+    // Filter based on search query
     if (!searchQuery) {
       return true;
     }
@@ -29,18 +48,32 @@ export default function TokenSelector({ onClose, onSelect, excludeToken }: Token
     const query = searchQuery.toLowerCase();
     return (
       token.name.toLowerCase().includes(query) ||
-      token.symbol.toLowerCase().includes(query)
+      token.symbol.toLowerCase().includes(query) ||
+      token.address.toLowerCase() === query // Exact match for address
     );
   });
   
-  // Separate favorite tokens for display
-  const favoritedTokens = filteredTokens.filter(token => 
-    favoriteTokens.includes(token.symbol)
-  );
-  
-  const otherTokens = filteredTokens.filter(token => 
-    !favoriteTokens.includes(token.symbol)
-  );
+  // Sort the tokens by balance (non-zero first), then by favorites, then by popular, then by symbol
+  const sortedTokens = [...filteredTokens].sort((a, b) => {
+    // First sort by whether the token has a balance > 0
+    if (a.balance > 0 && b.balance === 0) return -1;
+    if (a.balance === 0 && b.balance > 0) return 1;
+    
+    // Then by favorites
+    const aIsFavorite = favoriteTokens.includes(a.address);
+    const bIsFavorite = favoriteTokens.includes(b.address);
+    if (aIsFavorite && !bIsFavorite) return -1;
+    if (!aIsFavorite && bIsFavorite) return 1;
+    
+    // Then by popular
+    const aIsPopular = popularTokens.includes(a.address);
+    const bIsPopular = popularTokens.includes(b.address);
+    if (aIsPopular && !bIsPopular) return -1;
+    if (!aIsPopular && bIsPopular) return 1;
+    
+    // Finally by symbol
+    return a.symbol.localeCompare(b.symbol);
+  });
   
   // Close on escape key
   useEffect(() => {
@@ -72,7 +105,7 @@ export default function TokenSelector({ onClose, onSelect, excludeToken }: Token
       >
         {/* Modal header */}
         <div className="flex items-center justify-between p-4 border-b border-[#2D3548]">
-          <h2 className="text-lg font-semibold uppercase tracking-wider">Select a token</h2>
+          <h2 className="text-lg font-semibold uppercase tracking-wider">Select</h2>
           <button 
             onClick={onClose} 
             className="text-[#94A3B8] hover:text-white transition"
@@ -97,97 +130,80 @@ export default function TokenSelector({ onClose, onSelect, excludeToken }: Token
           </div>
         </div>
         
+        {/* Tabs */}
+        <div className="flex border-b border-[#2D3548]">
+          <button 
+            onClick={() => setActiveTab('all')}
+            className={cn(
+              "flex-1 py-2 px-4 text-sm uppercase tracking-wider transition",
+              activeTab === 'all' 
+                ? "border-b-2 border-[#AFD803] text-white" 
+                : "text-[#94A3B8] hover:text-white"
+            )}
+          >
+            All Tokens
+          </button>
+          <button 
+            onClick={() => setActiveTab('favorites')}
+            className={cn(
+              "flex-1 py-2 px-4 text-sm uppercase tracking-wider transition",
+              activeTab === 'favorites' 
+                ? "border-b-2 border-[#AFD803] text-white" 
+                : "text-[#94A3B8] hover:text-white"
+            )}
+          >
+            Favorites
+          </button>
+          <button 
+            onClick={() => setActiveTab('popular')}
+            className={cn(
+              "flex-1 py-2 px-4 text-sm uppercase tracking-wider transition",
+              activeTab === 'popular' 
+                ? "border-b-2 border-[#AFD803] text-white" 
+                : "text-[#94A3B8] hover:text-white"
+            )}
+          >
+            Popular
+          </button>
+        </div>
+        
         {/* Token list */}
         <div className="flex-1 overflow-y-auto">
-          {/* Favorite tokens section */}
-          {favoritedTokens.length > 0 && (
+          {isLoadingTokens ? (
+            <div className="flex flex-col items-center justify-center h-40">
+              <Loader2 size={24} className="animate-spin text-[#AFD803] mb-2" />
+              <p className="text-sm text-[#94A3B8]">Loading...</p>
+            </div>
+          ) : sortedTokens.length > 0 ? (
             <div className="p-2">
-              <h3 className="px-2 py-1 text-xs text-[#94A3B8] font-medium uppercase tracking-wider">Favorites</h3>
               <div className="space-y-1">
-                {favoritedTokens.map(token => (
+                {sortedTokens.map(token => (
                   <TokenRow
-                    key={token.symbol}
+                    key={token.address}
                     token={token}
-                    isFavorite={true}
+                    isFavorite={favoriteTokens.includes(token.address)}
                     onSelect={() => onSelect(token)}
-                    onToggleFavorite={() => toggleFavorite(token.symbol)}
+                    onToggleFavorite={() => toggleFavorite(token.address)}
                   />
                 ))}
               </div>
             </div>
-          )}
-          
-          {/* All tokens */}
-          <div className="p-2">
-            {favoritedTokens.length > 0 && (
-              <h3 className="px-2 py-1 text-xs text-[#94A3B8] font-medium uppercase tracking-wider">All tokens</h3>
-            )}
-            <div className="space-y-1">
-              {otherTokens.map(token => (
-                <TokenRow
-                  key={token.symbol}
-                  token={token}
-                  isFavorite={favoriteTokens.includes(token.symbol)}
-                  onSelect={() => onSelect(token)}
-                  onToggleFavorite={() => toggleFavorite(token.symbol)}
-                />
-              ))}
-              
-              {filteredTokens.length === 0 && (
-                <div className="px-2 py-4 text-center text-[#94A3B8] uppercase tracking-wider">
-                  No tokens found
-                </div>
+          ) : (
+            <div className="py-10 px-4 text-center">
+              <p className="text-[#94A3B8] mb-2 uppercase tracking-wider">
+                No tokens found
+              </p>
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="bg-[#2D3548] hover:bg-[#3D4663] text-white rounded-lg px-4 py-2 text-sm"
+                >
+                  Clear search
+                </button>
               )}
             </div>
-          </div>
+          )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-interface TokenRowProps {
-  token: Token;
-  isFavorite: boolean;
-  onSelect: () => void;
-  onToggleFavorite: () => void;
-}
-
-function TokenRow({ token, isFavorite, onSelect, onToggleFavorite }: TokenRowProps) {
-  return (
-    <div className="flex items-center justify-between px-3 py-2 hover:bg-[#202535] rounded-lg cursor-pointer transition">
-      <div className="flex items-center gap-3" onClick={onSelect}>
-        <div className="w-8 h-8 bg-[#3D4663] rounded-full flex items-center justify-center font-medium">
-          {token.symbol.charAt(0)}
-        </div>
-        <div>
-          <div className="font-medium uppercase tracking-wider">{token.symbol}</div>
-          <div className="text-xs text-[#94A3B8]">{token.name}</div>
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-3">
-        <div onClick={onSelect} className="text-right">
-          <div className="font-medium uppercase tracking-wider">{token.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-          <div className="text-xs text-[#94A3B8]">
-            ${(token.price * token.balance).toFixed(2)}
-          </div>
-        </div>
-        
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFavorite();
-          }}
-          className="text-[#94A3B8] hover:text-[#AFD803] transition p-1"
-        >
-          <Star 
-            size={16} 
-            className={cn(
-              isFavorite && "fill-[#AFD803] text-[#AFD803]"
-            )} 
-          />
-        </button>
       </div>
     </div>
   );
