@@ -194,6 +194,79 @@ input[type=number] {
   font-size: 0.8125rem;
 }
 
+/* Add these to globals.css */
+
+/* Reduced text sizes */
+.text-xs {
+  font-size: 0.65rem; /* Reduced from 0.75rem */
+  line-height: 1rem;
+}
+
+.text-sm {
+  font-size: 0.75rem; /* Reduced from 0.875rem */
+  line-height: 1.25rem;
+}
+
+.text-base {
+  font-size: 0.875rem; /* Reduced from 1rem */
+  line-height: 1.5rem;
+}
+
+.text-lg {
+  font-size: 1rem; /* Reduced from 1.125rem */
+  line-height: 1.75rem;
+}
+
+.text-xl {
+  font-size: 1.125rem; /* Reduced from 1.25rem */
+  line-height: 1.75rem;
+}
+
+.text-2xl {
+  font-size: 1.25rem; /* Reduced from 1.5rem */
+  line-height: 2rem;
+}
+
+/* Even smaller text for the custom class */
+.text-small {
+  font-size: 0.7rem; /* Reduced from 0.8125rem */
+}
+
+/* Jupiter input adjustments */
+.jupiter-input {
+  font-size: 1.25rem; /* Reduced from 1.5rem */
+}
+
+/* Widget adjustments */
+.swap-widget-text {
+  font-size: 0.75rem;
+}
+
+/* Navbar text */
+.navbar-text {
+  font-size: 0.75rem;
+}
+
+/* Button text */
+.btn-text {
+  font-size: 0.75rem;
+}
+
+/* Token list text */
+.token-list-text {
+  font-size: 0.75rem;
+}
+
+/* Token text in swap interface */
+.token-text {
+  font-size: 0.75rem;
+}
+
+/* Footer text */
+.footer-text {
+  font-size: 0.65rem;
+}
+
 /* Wallet menu styles */
 .wallet-menu {
   background-color: #1B2131;

@@ -89,18 +89,22 @@ export default function SwapWidget() {
       <div className="flex items-center justify-between p-4 border-b border-[#2D3548]">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold uppercase tracking-wider">Swap</h2>
-          <div className="jupiter-tag uppercase tracking-wider">MANUAL</div>
         </div>
+        
+        {/* Slippage and settings buttons */}
         <div className="flex items-center gap-2">
+          <button className="jupiter-tag flex items-center uppercase tracking-wider">
+            Slippage: {slippage}%
+          </button>
           <button 
             onClick={() => setIsSettingsOpen(true)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2D3548] transition"
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2D3548] transition hover:cursor-pointer"
           >
             <Settings size={18} className="text-[#94A3B8]" />
           </button>
           <button 
             onClick={handleRefreshBalances}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2D3548] transition"
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2D3548] transition hover:cursor-pointer"
           >
             <RefreshCw size={18} className="text-[#94A3B8]" />
           </button>
@@ -114,14 +118,14 @@ export default function SwapWidget() {
             <span className="text-sm font-medium uppercase tracking-wider">Selling</span>
             <div className="flex items-center gap-2">
               <button 
-                className="px-3 py-1 bg-[#2D3548] rounded-md text-xs font-medium text-[#94A3B8] hover:text-white hover:bg-[#3D4663] transition uppercase tracking-wider"
+                className="px-3 py-1 bg-[#2D3548] rounded-md text-xs font-medium text-[#94A3B8] hover:text-white hover:bg-[#3D4663] transition uppercase tracking-wider hover:cursor-pointer"
                 onClick={() => fromToken && setFromAmount(fromToken.balance / 2)}
                 disabled={!isConnected || !fromToken || fromToken.balance <= 0}
               >
                 HALF
               </button>
               <button 
-                className="px-3 py-1 bg-[#2D3548] rounded-md text-xs font-medium text-[#94A3B8] hover:text-white hover:bg-[#3D4663] transition uppercase tracking-wider"
+                className="px-3 py-1 bg-[#2D3548] rounded-md text-xs font-medium text-[#94A3B8] hover:text-white hover:bg-[#3D4663] transition uppercase tracking-wider hover:cursor-pointer"
                 onClick={() => fromToken && setFromAmount(fromToken.balance)}
                 disabled={!isConnected || !fromToken || fromToken.balance <= 0}
               >
@@ -248,16 +252,6 @@ export default function SwapWidget() {
               ≈ ${(estimatedOutput * toToken.price).toFixed(2)}
             </div>
           )}
-        </div>
-        
-        {/* Slippage and routing info */}
-        <div className="flex flex-wrap items-center gap-2 mt-3 px-1">
-          <button className="jupiter-tag flex items-center uppercase tracking-wider">
-            Slippage: {slippage}%
-          </button>
-          <button className="jupiter-tag flex items-center uppercase tracking-wider">
-            Routing: Auto
-          </button>
         </div>
         
         {/* Price and impact info */}
