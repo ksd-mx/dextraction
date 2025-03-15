@@ -9,7 +9,6 @@ import debounce from 'lodash.debounce';
 interface TokenState {
   tokens: TokenInfo[];
   filteredTokens: TokenInfo[]; // Optimized list for display
-  popularTokens: string[]; // List of popular token addresses
   favoriteTokens: string[]; // List of favorite token addresses (persisted)
   isLoadingTokens: boolean;
   isLoadingBalances: boolean;
@@ -32,8 +31,8 @@ interface TokenState {
   resetErrorState: () => void; // Reset error state
 }
 
-// List of popular token addresses on Solana
-const DEFAULT_POPULAR_TOKENS = [
+// List of popular token addresses on Solana - useful for sorting 
+const POPULAR_TOKEN_ADDRESSES = [
   'So11111111111111111111111111111111111111112', // SOL
   'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
   'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
@@ -41,43 +40,6 @@ const DEFAULT_POPULAR_TOKENS = [
   'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',  // JUP
   '7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj', // stSOL
   'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',  // mSOL
-  'DUSTawucrTsGU8hcqRdHDCbuYhCPADMLM2VcCb8VnFnQ', // DUST
-  'ARzG5HLU6u1n8G4VChSuEKpX7BE1apcjV4cKyCfhzJYC', // MYRO
-  'hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux', // HNT
-];
-
-// Fallback tokens for when API fails
-const FALLBACK_TOKENS: TokenInfo[] = [
-  {
-    symbol: 'SOL',
-    name: 'Solana',
-    address: 'So11111111111111111111111111111111111111112',
-    decimals: 9,
-    price: 0,
-    balance: 0,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-    tags: ['native']
-  },
-  {
-    symbol: 'USDC',
-    name: 'USD Coin',
-    address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-    decimals: 6,
-    price: 0,
-    balance: 0,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
-    tags: ['stablecoin']
-  },
-  {
-    symbol: 'USDT',
-    name: 'Tether',
-    address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
-    decimals: 6,
-    price: 0,
-    balance: 0,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.png',
-    tags: ['stablecoin']
-  }
 ];
 
 // Create a properly typed debounced function for filtering tokens
@@ -113,15 +75,15 @@ const debouncedFilter = debounce(
       if (aIsFavorite && !bIsFavorite) return -1;
       if (!aIsFavorite && bIsFavorite) return 1;
       
-      // Then by popular
+      // Then by balance (tokens user owns)
+      if (a.balance > 0 && b.balance === 0) return -1;
+      if (a.balance === 0 && b.balance > 0) return 1;
+      
+      // Then by popular tokens
       const aIsPopular = popularTokens.includes(a.address);
       const bIsPopular = popularTokens.includes(b.address);
       if (aIsPopular && !bIsPopular) return -1;
       if (!aIsPopular && bIsPopular) return 1;
-      
-      // Then by balance
-      if (a.balance > 0 && b.balance === 0) return -1;
-      if (a.balance === 0 && b.balance > 0) return 1;
       
       // Finally by symbol
       return a.symbol.localeCompare(b.symbol);
@@ -134,14 +96,12 @@ const debouncedFilter = debounce(
 
 // Prevent multiple concurrent fetches
 let isFetchingTokens = false;
-let tokenFetchTimeout: NodeJS.Timeout | null = null;
 
 export const useTokenStore = create<TokenState>()(
   persist(
     (set, get) => ({
       tokens: [],
       filteredTokens: [],
-      popularTokens: DEFAULT_POPULAR_TOKENS,
       favoriteTokens: [],
       isLoadingTokens: false,
       isLoadingBalances: false,
@@ -178,7 +138,7 @@ export const useTokenStore = create<TokenState>()(
             debouncedFilter(
               state.tokens, 
               state.searchQuery, 
-              state.popularTokens, 
+              POPULAR_TOKEN_ADDRESSES, 
               newFavorites, 
               (filtered) => set({ filteredTokens: filtered })
             );
@@ -189,7 +149,7 @@ export const useTokenStore = create<TokenState>()(
       },
       
       updateFilteredTokens: (query?: string) => {
-        const { tokens, popularTokens, favoriteTokens } = get();
+        const { tokens, favoriteTokens } = get();
         const searchString = query !== undefined ? query : get().searchQuery;
         
         if (!searchString.trim()) {
@@ -201,15 +161,15 @@ export const useTokenStore = create<TokenState>()(
             if (aIsFavorite && !bIsFavorite) return -1;
             if (!aIsFavorite && bIsFavorite) return 1;
             
-            // Then by popular
-            const aIsPopular = popularTokens.includes(a.address);
-            const bIsPopular = popularTokens.includes(b.address);
-            if (aIsPopular && !bIsPopular) return -1;
-            if (!aIsPopular && bIsPopular) return 1;
-            
-            // Then by balance
+            // Then by balance (tokens user owns)
             if (a.balance > 0 && b.balance === 0) return -1;
             if (a.balance === 0 && b.balance > 0) return 1;
+            
+            // Then by popular tokens
+            const aIsPopular = POPULAR_TOKEN_ADDRESSES.includes(a.address);
+            const bIsPopular = POPULAR_TOKEN_ADDRESSES.includes(b.address);
+            if (aIsPopular && !bIsPopular) return -1;
+            if (!aIsPopular && bIsPopular) return 1;
             
             // Finally by symbol
             return a.symbol.localeCompare(b.symbol);
@@ -223,7 +183,7 @@ export const useTokenStore = create<TokenState>()(
         debouncedFilter(
           tokens, 
           searchString, 
-          popularTokens, 
+          POPULAR_TOKEN_ADDRESSES, 
           favoriteTokens, 
           (filtered) => set({ filteredTokens: filtered })
         );
@@ -235,104 +195,74 @@ export const useTokenStore = create<TokenState>()(
       },
       
       fetchAllTokens: async () => {
-        // Prevent multiple concurrent fetches and implement circuit-breaker
+        // Prevent multiple concurrent fetches
         if (isFetchingTokens) {
           console.log('Token fetch already in progress, skipping duplicate request');
           return get().tokens;
-        }
-        
-        // Clear any existing timeout to prevent memory leaks
-        if (tokenFetchTimeout) {
-          clearTimeout(tokenFetchTimeout);
-          tokenFetchTimeout = null;
         }
         
         try {
           isFetchingTokens = true;
           set({ isLoadingTokens: true, hasTokenError: false });
           
-          // Set a timeout to automatically release the fetch lock after 30 seconds
-          // This prevents deadlocks if something goes wrong
-          tokenFetchTimeout = setTimeout(() => {
-            console.warn('Token fetch timeout exceeded, releasing lock');
+          // Check if we need to refresh token cache
+          const lastFetchTime = get().lastUpdated || 0;
+          const currentTime = Date.now();
+          const oneDayMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+          
+          // Only fetch new tokens if:
+          // 1. We don't have any tokens yet, or
+          // 2. It's been more than 24 hours since the last update
+          const shouldFetchNewTokens = 
+            get().tokens.length === 0 ||
+            currentTime - lastFetchTime > oneDayMs;
+          
+          if (!shouldFetchNewTokens) {
+            console.log('Using cached tokens, last updated:', new Date(lastFetchTime).toLocaleString());
+            set({ isLoadingTokens: false });
             isFetchingTokens = false;
-            tokenFetchTimeout = null;
-            
-            // If we're still loading, we need to reset the state
-            if (get().isLoadingTokens) {
-              set({ 
-                isLoadingTokens: false,
-                hasTokenError: true
-              });
-              
-              // Show error notification only once
-              showNotification.error(
-                'Token Fetch Error',
-                'Could not load token list in time. Please try again later.'
-              );
-            }
-          }, 30000);
-          
-          // Use the optimized function to fetch tokens with prices
-          const tokens = await fetchTokensWithPrices();
-          
-          // If this is the first load, and there are no favorites yet, add some defaults
-          if (get().favoriteTokens.length === 0) {
-            set({ favoriteTokens: DEFAULT_POPULAR_TOKENS.slice(0, 5) });
+            return get().tokens;
           }
           
-          // If API returned empty, use fallbacks instead of failing
+          // Fetch tokens with prices
+          const tokens = await fetchTokensWithPrices();
+          
+          // If we got no tokens, keep existing tokens and set error
           if (!tokens || tokens.length === 0) {
             set({
-              tokens: FALLBACK_TOKENS,
-              filteredTokens: FALLBACK_TOKENS,
               isLoadingTokens: false,
-              hasTokenError: true,
-              lastUpdated: Date.now()
+              hasTokenError: true
             });
             
             showNotification.error(
               'Token Fetch Error',
-              'Could not load token list. Using fallback tokens.'
+              'Could not load token list. Please try again later.'
             );
             
             isFetchingTokens = false;
-            if (tokenFetchTimeout) {
-              clearTimeout(tokenFetchTimeout);
-              tokenFetchTimeout = null;
-            }
-            
-            return FALLBACK_TOKENS;
+            return get().tokens;
           }
           
-          // Filter out tokens with no price (likely spam or very low liquidity)
-          // unless they are popular tokens
-          const validTokens = tokens.filter(token => 
-            get().popularTokens.includes(token.address) || 
-            get().favoriteTokens.includes(token.address) || 
-            token.price > 0
-          );
-          
-          // Sort by popularity, favorites, and price
-          const sortedTokens = validTokens.sort((a, b) => {
-            // First by balance
-            if (a.balance > 0 && b.balance === 0) return -1;
-            if (a.balance === 0 && b.balance > 0) return 1;
-            
-            // Then by favorites
+          // Sort tokens by favorites, balance, and popularity
+          const sortedTokens = [...tokens].sort((a, b) => {
+            // First by favorites
             const aIsFavorite = get().favoriteTokens.includes(a.address);
             const bIsFavorite = get().favoriteTokens.includes(b.address);
             if (aIsFavorite && !bIsFavorite) return -1;
             if (!aIsFavorite && bIsFavorite) return 1;
             
-            // Then by popularity
-            const aIsPopular = get().popularTokens.includes(a.address);
-            const bIsPopular = get().popularTokens.includes(b.address);
+            // Then by balance (tokens user owns)
+            if (a.balance > 0 && b.balance === 0) return -1;
+            if (a.balance === 0 && b.balance > 0) return 1;
+            
+            // Then by popular tokens
+            const aIsPopular = POPULAR_TOKEN_ADDRESSES.includes(a.address);
+            const bIsPopular = POPULAR_TOKEN_ADDRESSES.includes(b.address);
             if (aIsPopular && !bIsPopular) return -1;
             if (!aIsPopular && bIsPopular) return 1;
             
-            // Finally by price (as a proxy for importance)
-            return b.price - a.price;
+            // Finally by symbol
+            return a.symbol.localeCompare(b.symbol);
           });
           
           set({ 
@@ -344,66 +274,35 @@ export const useTokenStore = create<TokenState>()(
           });
           
           isFetchingTokens = false;
-          if (tokenFetchTimeout) {
-            clearTimeout(tokenFetchTimeout);
-            tokenFetchTimeout = null;
-          }
-          
           return sortedTokens;
         } catch (error) {
           console.error('Error fetching tokens:', error);
           
-          // Release locks on error
-          isFetchingTokens = false;
-          if (tokenFetchTimeout) {
-            clearTimeout(tokenFetchTimeout);
-            tokenFetchTimeout = null;
-          }
+          set({ 
+            isLoadingTokens: false, 
+            hasTokenError: true 
+          });
           
-          // If tokens array is empty, use fallback tokens
-          if (get().tokens.length === 0) {
-            set({
-              tokens: FALLBACK_TOKENS,
-              filteredTokens: FALLBACK_TOKENS,
-              isLoadingTokens: false,
-              hasTokenError: true,
-              lastUpdated: Date.now()
-            });
-            
-            showNotification.error(
-              'Token Fetch Error',
-              'Could not load token list. Using fallback tokens.'
-            );
-            
-            return FALLBACK_TOKENS;
-          } else {
-            // Otherwise use what we already have
-            set({ isLoadingTokens: false, hasTokenError: true });
-            
-            showNotification.error(
-              'Token Fetch Error',
-              'Could not update token list. Using cached data.'
-            );
-            
-            return get().tokens;
-          }
+          showNotification.error(
+            'Token Fetch Error',
+            'Could not load token list. Please try again later.'
+          );
+          
+          isFetchingTokens = false;
+          return get().tokens;
         }
       },
       
       fetchTokenBalances: async (walletAddress: string) => {
         if (!walletAddress) return;
         
-        // Use a local lock to prevent concurrent balance fetches
-        let isBalanceFetchInProgress = false;
-        
         try {
           // Don't fetch balances if we're already loading
-          if (get().isLoadingBalances || isBalanceFetchInProgress) {
+          if (get().isLoadingBalances) {
             console.log('Balance fetch already in progress, skipping duplicate request');
             return;
           }
           
-          isBalanceFetchInProgress = true;
           set({ isLoadingBalances: true });
           
           // Validate wallet address
@@ -419,74 +318,51 @@ export const useTokenStore = create<TokenState>()(
           // Get current tokens
           const { tokens } = get();
           if (tokens.length === 0) {
-            const newTokens = await get().fetchAllTokens();
-            
-            // If token fetch failed, bail out
-            if (newTokens.length === 0) {
-              set({ isLoadingBalances: false });
-              isBalanceFetchInProgress = false;
-              return;
-            }
+            await get().fetchAllTokens();
           }
           
-          // Ensure we still have the most recent tokens after any async operations
+          // Get token balances efficiently
           const currentTokens = get().tokens;
-          
-          // Get token balances for prioritized tokens first (SOL, USDC, etc.)
-          const priorityAddresses = [
-            ...DEFAULT_POPULAR_TOKENS.slice(0, 3),  // SOL, USDC, USDT
-            ...get().favoriteTokens
-          ];
-          
-          const priorityTokens = currentTokens.filter(token => 
-            priorityAddresses.includes(token.address)
-          );
           
           // Create a shallow copy to avoid mutating the state directly
           const tokensCopy = currentTokens.map(t => ({...t}));
           
+          // Get priority tokens (SOL, USDC, USDT, etc.)
+          const priorityTokens = tokensCopy.filter(token => 
+            POPULAR_TOKEN_ADDRESSES.slice(0, 5).includes(token.address) || 
+            get().favoriteTokens.includes(token.address)
+          );
+          
           try {
-            // Get balances for priority tokens immediately - with error handling
+            // First fetch high-priority token balances
             const balanceMap = await getTokenBalances(walletAddress, priorityTokens);
             
-            // If balanceMap is empty, something went wrong with the API - don't update
-            if (balanceMap.size === 0) {
-              throw new Error('Failed to fetch token balances');
+            // Update high-priority tokens with balances
+            for (const token of priorityTokens) {
+              if (balanceMap.has(token.address)) {
+                const index = tokensCopy.findIndex(t => t.address === token.address);
+                if (index >= 0) {
+                  tokensCopy[index].balance = balanceMap.get(token.address) || 0;
+                }
+              }
             }
             
-            // Update only the priority tokens' balances in our copy
-            priorityTokens.forEach(token => {
-              const index = tokensCopy.findIndex(t => t.address === token.address);
-              if (index >= 0 && balanceMap.has(token.address)) {
-                tokensCopy[index].balance = balanceMap.get(token.address) || 0;
-              }
-            });
-            
-            // Update state with priority balances
+            // Update state with priority token balances first for quick UI update
             set({
               tokens: tokensCopy,
-              isLoadingBalances: false,
               lastUpdated: Date.now()
             });
             
             // Update filtered tokens
             get().updateFilteredTokens();
             
-            // Set a flag to prevent duplicate calls
-            isBalanceFetchInProgress = false;
-            
-            // Then fetch remaining token balances in the background with a timeout
-            const balanceTimeout = setTimeout(() => {
-              console.warn('Balance update timeout exceeded, abandoning fetch');
-            }, 15000);
-            
+            // Then fetch all remaining token balances in the background
             batchUpdateTokenBalances(walletAddress, tokensCopy)
               .then(() => {
-                clearTimeout(balanceTimeout);
-                
                 // When all balances are loaded, update the state one more time
                 set({
                   tokens: [...tokensCopy], // Use a new reference to trigger re-renders
+                  isLoadingBalances: false,
                   lastUpdated: Date.now()
                 });
                 
@@ -494,29 +370,22 @@ export const useTokenStore = create<TokenState>()(
                 get().updateFilteredTokens();
               })
               .catch(error => {
-                clearTimeout(balanceTimeout);
                 console.error('Error in background balance update:', error);
+                set({ isLoadingBalances: false });
               });
-              
-          } catch (error) {
-            console.error('Error fetching priority token balances:', error);
             
-            // If we failed to fetch balances, just use existing tokens but still finish loading
+          } catch (error) {
+            console.error('Error fetching token balances:', error);
             set({ isLoadingBalances: false });
-            isBalanceFetchInProgress = false;
           }
         } catch (error) {
           console.error('Error in fetchTokenBalances:', error);
           set({ isLoadingBalances: false });
-          isBalanceFetchInProgress = false;
           
-          // Show a notification only if the error isn't just a duplicate request
-          if (!(error as Error).message?.includes('already in progress')) {
-            showNotification.error(
-              'Balance Fetch Error', 
-              (error as Error).message || 'Could not load token balances'
-            );
-          }
+          showNotification.error(
+            'Balance Fetch Error', 
+            error instanceof Error ? error.message : 'Failed to fetch token balances'
+          );
         }
       },
       
@@ -524,47 +393,24 @@ export const useTokenStore = create<TokenState>()(
         const { tokens } = get();
         if (tokens.length === 0) return;
         
-        // Use a local lock to prevent concurrent price refreshes
-        let isPriceRefreshInProgress = false;
-        
         try {
-          // Skip if we're already refreshing prices
-          if (isPriceRefreshInProgress) {
-            console.log('Price refresh already in progress, skipping duplicate request');
-            return;
-          }
-          
-          isPriceRefreshInProgress = true;
-          
-          // Refresh prices without blocking UI - create a copy to avoid direct mutation
+          // Create a copy of tokens to avoid direct mutation
           const tokensCopy = tokens.map(t => ({...t}));
-          const priceMap = await refreshTokenPrices(tokensCopy);
           
-          // If price map is empty, don't update - this means the API call failed
-          if (Object.keys(priceMap).length === 0) {
-            console.warn('Price refresh returned no data, keeping existing prices');
-            isPriceRefreshInProgress = false;
-            return;
-          }
+          // Refresh prices and update tokens
+          await refreshTokenPrices(tokensCopy);
           
-          // Update tokens with new prices
-          const updatedTokens = tokensCopy.map(token => ({
-            ...token,
-            price: priceMap[token.address] || token.price
-          }));
-          
+          // Update state with new prices
           set({ 
-            tokens: updatedTokens,
+            tokens: tokensCopy,
             lastUpdated: Date.now()
           });
           
           // Update filtered tokens
           get().updateFilteredTokens();
-          isPriceRefreshInProgress = false;
         } catch (error) {
           console.error('Error refreshing prices:', error);
-          isPriceRefreshInProgress = false;
-          // No notification here - price refresh failures are quiet
+          // No notification here - price refresh failures should be silent
         }
       }
     }),
@@ -572,6 +418,8 @@ export const useTokenStore = create<TokenState>()(
       name: 'token-store',
       partialize: (state) => ({ 
         favoriteTokens: state.favoriteTokens,
+        // Include lastUpdated to track when tokens were last fetched
+        lastUpdated: state.lastUpdated,
       }),
     }
   )

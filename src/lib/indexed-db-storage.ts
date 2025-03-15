@@ -50,9 +50,14 @@ function initDB(): Promise<IDBDatabase> {
 }
 
 /**
- * Saves tokens to IndexedDB
+ * Saves tokens to IndexedDB with improved error handling
  */
 export async function saveTokensToCache(tokens: any[], expiryMs = 24 * 60 * 60 * 1000): Promise<void> {
+  if (!tokens || tokens.length === 0) {
+    console.warn('Attempted to save empty token list to cache');
+    return;
+  }
+
   try {
     const db = await initDB();
     const tx = db.transaction([TOKEN_STORE, METADATA_STORE], 'readwrite');
@@ -63,12 +68,14 @@ export async function saveTokensToCache(tokens: any[], expiryMs = 24 * 60 * 60 *
     // Clear existing tokens
     tokenStore.clear();
     
-    // Add each token
+    // Add each token - handle potential duplicates by using put instead of add
     tokens.forEach(token => {
-      tokenStore.add(token);
+      if (token && token.address) {
+        tokenStore.put(token);
+      }
     });
     
-    // Update metadata
+    // Update metadata with expiry
     metadataStore.put({
       key: TOKEN_STORE,
       timestamp: Date.now(),
@@ -77,7 +84,10 @@ export async function saveTokensToCache(tokens: any[], expiryMs = 24 * 60 * 60 *
     
     return new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve();
-      tx.onerror = (event) => reject(event);
+      tx.onerror = (event) => {
+        console.error('Transaction error when saving tokens:', event);
+        reject(event);
+      };
     });
   } catch (error) {
     console.error('Error saving tokens to cache:', error);
@@ -85,9 +95,14 @@ export async function saveTokensToCache(tokens: any[], expiryMs = 24 * 60 * 60 *
 }
 
 /**
- * Saves price data to IndexedDB
+ * Saves price data to IndexedDB with improved validation
  */
-export async function savePricesToCache(prices: Record<string, number>, expiryMs = 5 * 60 * 1000): Promise<void> {
+export async function savePricesToCache(prices: Record<string, number>, expiryMs = 15 * 60 * 1000): Promise<void> {
+  if (!prices || Object.keys(prices).length === 0) {
+    console.warn('Attempted to save empty price map to cache');
+    return;
+  }
+
   try {
     const db = await initDB();
     const tx = db.transaction([PRICES_STORE, METADATA_STORE], 'readwrite');
@@ -98,12 +113,14 @@ export async function savePricesToCache(prices: Record<string, number>, expiryMs
     // Clear existing prices
     priceStore.clear();
     
-    // Add each price
+    // Add each price - validate data before storing
     Object.entries(prices).forEach(([address, price]) => {
-      priceStore.add({ address, price });
+      if (address && !isNaN(price)) {
+        priceStore.put({ address, price });
+      }
     });
     
-    // Update metadata
+    // Update metadata with expiry
     metadataStore.put({
       key: PRICES_STORE,
       timestamp: Date.now(),
@@ -112,7 +129,10 @@ export async function savePricesToCache(prices: Record<string, number>, expiryMs
     
     return new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve();
-      tx.onerror = (event) => reject(event);
+      tx.onerror = (event) => {
+        console.error('Transaction error when saving prices:', event);
+        reject(event);
+      };
     });
   } catch (error) {
     console.error('Error saving prices to cache:', error);
@@ -120,7 +140,7 @@ export async function savePricesToCache(prices: Record<string, number>, expiryMs
 }
 
 /**
- * Gets tokens from IndexedDB
+ * Gets tokens from IndexedDB with improved cache validation
  */
 export async function getTokensFromCache(): Promise<any[] | null> {
   try {
@@ -138,6 +158,7 @@ export async function getTokensFromCache(): Promise<any[] | null> {
     
     // If cache expired or missing, return null
     if (!metadataResult || Date.now() > metadataResult.expiry) {
+      console.log('Token cache expired or missing');
       return null;
     }
     
@@ -145,10 +166,27 @@ export async function getTokensFromCache(): Promise<any[] | null> {
     const tokenStore = tx.objectStore(TOKEN_STORE);
     const tokenReq = tokenStore.getAll();
     
-    return new Promise((resolve, reject) => {
+    const tokens = await new Promise<any[]>((resolve, reject) => {
       tokenReq.onsuccess = () => resolve(tokenReq.result);
       tokenReq.onerror = (event) => reject(event);
     });
+    
+    // Validate token data before returning
+    if (!tokens || tokens.length === 0) {
+      console.log('Token cache is empty');
+      return null;
+    }
+    
+    // Filter out potentially corrupted token data
+    const validTokens = tokens.filter(token => 
+      token && 
+      token.address && 
+      token.symbol && 
+      token.name && 
+      token.decimals !== undefined
+    );
+    
+    return validTokens;
   } catch (error) {
     console.error('Error getting tokens from cache:', error);
     return null;
@@ -156,7 +194,7 @@ export async function getTokensFromCache(): Promise<any[] | null> {
 }
 
 /**
- * Gets prices from IndexedDB
+ * Gets prices from IndexedDB with improved error handling
  */
 export async function getPricesFromCache(): Promise<Record<string, number> | null> {
   try {
@@ -174,6 +212,7 @@ export async function getPricesFromCache(): Promise<Record<string, number> | nul
     
     // If cache expired or missing, return null
     if (!metadataResult || Date.now() > metadataResult.expiry) {
+      console.log('Price cache expired or missing');
       return null;
     }
     
@@ -186,10 +225,20 @@ export async function getPricesFromCache(): Promise<Record<string, number> | nul
       priceReq.onerror = (event) => reject(event);
     });
     
+    // Validate price data before converting to record
+    if (!prices || prices.length === 0) {
+      console.log('Price cache is empty');
+      return null;
+    }
+    
     // Convert to record
     const priceMap: Record<string, number> = {};
+    
+    // Filter out invalid prices
     prices.forEach(item => {
-      priceMap[item.address] = item.price;
+      if (item && item.address && !isNaN(item.price)) {
+        priceMap[item.address] = item.price;
+      }
     });
     
     return priceMap;
@@ -214,6 +263,8 @@ export async function clearTokenCache(): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = (event) => reject(event);
     });
+    
+    console.log('Token cache cleared successfully');
   } catch (error) {
     console.error('Error clearing token cache:', error);
   }
@@ -234,7 +285,32 @@ export async function clearPriceCache(): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = (event) => reject(event);
     });
+    
+    console.log('Price cache cleared successfully');
   } catch (error) {
     console.error('Error clearing price cache:', error);
+  }
+}
+
+/**
+ * Checks if a token cache exists and is valid
+ */
+export async function isTokenCacheValid(): Promise<boolean> {
+  try {
+    const db = await initDB();
+    const tx = db.transaction([METADATA_STORE], 'readonly');
+    
+    const metadataStore = tx.objectStore(METADATA_STORE);
+    const metadataReq = metadataStore.get(TOKEN_STORE);
+    
+    const metadataResult = await new Promise<CacheMetadata | undefined>((resolve, reject) => {
+      metadataReq.onsuccess = () => resolve(metadataReq.result);
+      metadataReq.onerror = (event) => reject(event);
+    });
+    
+    return !!metadataResult && Date.now() <= metadataResult.expiry;
+  } catch (error) {
+    console.error('Error checking token cache validity:', error);
+    return false;
   }
 }

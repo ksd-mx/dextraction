@@ -1,3 +1,5 @@
+import { config } from './config';
+
 /**
  * Web Worker for handling token data processing in the background
  * This prevents the main thread from being blocked during intensive operations
@@ -38,26 +40,39 @@ self.addEventListener('message', async (event: MessageEvent<WorkerMessage>) => {
 });
 
 /**
- * Fetches token list from Jupiter API
+ * Fetches token list from CoinGecko API
  */
 async function fetchTokens(): Promise<void> {
   try {
     self.postMessage({ type: 'STATUS', payload: { status: 'LOADING_TOKENS' } });
     
-    const response = await fetch('https://token.jup.ag/all');
+    // Fetch token list from CoinGecko
+    const response = await fetch(
+      `${config.tokens.apiUrl}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${config.tokens.maxTokensPerRequest}&page=1`
+    );
     if (!response.ok) {
       throw new Error(`Failed to fetch tokens: ${response.statusText}`);
     }
     
-    const jupiterTokens = await response.json();
+    const coingeckoTokens = await response.json();
+    const formattedTokens = coingeckoTokens.map((token: any) => ({
+      address: token.id,
+      symbol: token.symbol.toUpperCase(),
+      name: token.name,
+      decimals: 18,
+      logoURI: token.image,
+      price: token.current_price,
+      marketCap: token.market_cap,
+      volume: token.total_volume
+    }));
     
     self.postMessage({ 
       type: 'TOKENS_LOADED', 
-      payload: { tokens: jupiterTokens } 
+      payload: { tokens: formattedTokens } 
     });
     
-    // Now fetch prices
-    await fetchPrices(jupiterTokens);
+    // Now fetch prices from Jupiter (swaps remain there)
+    await fetchPrices(formattedTokens);
     
   } catch (error) {
     self.postMessage({ 
@@ -77,7 +92,7 @@ async function fetchPrices(tokens: any[]): Promise<void> {
   try {
     self.postMessage({ type: 'STATUS', payload: { status: 'LOADING_PRICES' } });
     
-    const response = await fetch('https://price.jup.ag/v4/price');
+    const response = await fetch(`${config.swaps.apiUrl}/v4/price`);
     if (!response.ok) {
       throw new Error(`Failed to fetch token prices: ${response.statusText}`);
     }
