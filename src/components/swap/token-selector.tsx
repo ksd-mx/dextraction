@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { X, Search, Loader2, Star } from 'lucide-react';
-import { cn, formatNumber } from '@/lib/utils';
+import { useState, useEffect, useCallback, memo } from 'react';
+import { X, Search, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useTokenStore } from '@/store/token-store';
 import { TokenInfo } from '@/types/token';
 import TokenRow from './token-row';
-import Image from 'next/image';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
 interface TokenSelectorProps {
   onClose: () => void;
@@ -12,20 +13,66 @@ interface TokenSelectorProps {
   excludeToken?: TokenInfo | null;
 }
 
+// Memo-ized TokenRow for maximum performance
+const MemoizedTokenRow = memo(TokenRow);
+
+// Define the row renderer for the virtualized list
+interface RowProps {
+  index: number;
+  style: React.CSSProperties;
+  data: {
+    tokens: TokenInfo[];
+    favoriteTokens: string[];
+    toggleFavorite: (address: string) => void;
+    onSelect: (token: TokenInfo) => void;
+  };
+}
+
+const Row = ({ index, style, data }: RowProps) => {
+  const { tokens, favoriteTokens, toggleFavorite, onSelect } = data;
+  const token = tokens[index];
+
+  if (!token) return null;
+
+  return (
+    <div style={style}>
+      <MemoizedTokenRow
+        token={token}
+        isFavorite={favoriteTokens.includes(token.address)}
+        onSelect={() => onSelect(token)}
+        onToggleFavorite={() => toggleFavorite(token.address)}
+      />
+    </div>
+  );
+};
+
 export default function TokenSelector({ onClose, onSelect, excludeToken }: TokenSelectorProps) {
-  const { tokens, favoriteTokens, toggleFavorite, popularTokens, fetchAllTokens, isLoadingTokens } = useTokenStore();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { 
+    tokens, 
+    filteredTokens,
+    favoriteTokens, 
+    toggleFavorite, 
+    popularTokens, 
+    fetchAllTokens, 
+    isLoadingTokens,
+    hasTokenError,
+    resetErrorState,
+    setSearchQuery,
+    searchQuery
+  } = useTokenStore();
+  
   const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'popular'>('all');
+  const [retryCount, setRetryCount] = useState(0);
   
   // Fetch tokens if not already loaded
   useEffect(() => {
     if (tokens.length === 0 && !isLoadingTokens) {
-      fetchAllTokens();
+      fetchAllTokens().catch(console.error);
     }
   }, [tokens.length, fetchAllTokens, isLoadingTokens]);
   
-  // Filter tokens based on search, excluded token, and active tab
-  const filteredTokens = tokens.filter(token => {
+  // Filter tokens based on active tab
+  const displayTokens = filteredTokens.filter(token => {
     // Exclude the token that's already selected in the other input
     if (excludeToken && token.address === excludeToken.address) {
       return false;
@@ -40,40 +87,13 @@ export default function TokenSelector({ onClose, onSelect, excludeToken }: Token
       return false;
     }
     
-    // Filter based on search query
-    if (!searchQuery) {
-      return true;
-    }
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      token.name.toLowerCase().includes(query) ||
-      token.symbol.toLowerCase().includes(query) ||
-      token.address.toLowerCase() === query // Exact match for address
-    );
+    return true;
   });
   
-  // Sort the tokens by balance (non-zero first), then by favorites, then by popular, then by symbol
-  const sortedTokens = [...filteredTokens].sort((a, b) => {
-    // First sort by whether the token has a balance > 0
-    if (a.balance > 0 && b.balance === 0) return -1;
-    if (a.balance === 0 && b.balance > 0) return 1;
-    
-    // Then by favorites
-    const aIsFavorite = favoriteTokens.includes(a.address);
-    const bIsFavorite = favoriteTokens.includes(b.address);
-    if (aIsFavorite && !bIsFavorite) return -1;
-    if (!aIsFavorite && bIsFavorite) return 1;
-    
-    // Then by popular
-    const aIsPopular = popularTokens.includes(a.address);
-    const bIsPopular = popularTokens.includes(b.address);
-    if (aIsPopular && !bIsPopular) return -1;
-    if (!aIsPopular && bIsPopular) return 1;
-    
-    // Finally by symbol
-    return a.symbol.localeCompare(b.symbol);
-  });
+  // Handle search input change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, [setSearchQuery]);
   
   // Close on escape key
   useEffect(() => {
@@ -88,10 +108,30 @@ export default function TokenSelector({ onClose, onSelect, excludeToken }: Token
   }, [onClose]);
   
   // Handle backdrop click
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
+  }, [onClose]);
+  
+  // Handle token selection with memoization
+  const handleSelect = useCallback((token: TokenInfo) => {
+    onSelect(token);
+  }, [onSelect]);
+
+  // Handle retry token fetch
+  const handleRetryFetch = useCallback(() => {
+    resetErrorState();
+    setRetryCount(prev => prev + 1);
+    fetchAllTokens().catch(console.error);
+  }, [fetchAllTokens, resetErrorState]);
+
+  // Data for virtualized list
+  const listData = {
+    tokens: displayTokens,
+    favoriteTokens,
+    toggleFavorite,
+    onSelect: handleSelect
   };
 
   return (
@@ -105,7 +145,7 @@ export default function TokenSelector({ onClose, onSelect, excludeToken }: Token
       >
         {/* Modal header */}
         <div className="flex items-center justify-between p-4 border-b border-[#2D3548]">
-          <h2 className="text-lg font-semibold uppercase tracking-wider">Select</h2>
+          <h2 className="text-lg font-semibold uppercase tracking-wider">Select Token</h2>
           <button 
             onClick={onClose} 
             className="text-[#94A3B8] hover:text-white transition"
@@ -124,8 +164,9 @@ export default function TokenSelector({ onClose, onSelect, excludeToken }: Token
               type="text"
               placeholder="Search by name or symbol"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 bg-[#202535] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#AFD803] focus:bg-[#2D3548] transition text-white"
+              disabled={isLoadingTokens || hasTokenError}
             />
           </div>
         </div>
@@ -168,38 +209,64 @@ export default function TokenSelector({ onClose, onSelect, excludeToken }: Token
         </div>
         
         {/* Token list */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-hidden">
           {isLoadingTokens ? (
             <div className="flex flex-col items-center justify-center h-40">
               <Loader2 size={24} className="animate-spin text-[#AFD803] mb-2" />
-              <p className="text-sm text-[#94A3B8]">Loading...</p>
+              <p className="text-sm text-[#94A3B8]">Loading tokens...</p>
             </div>
-          ) : sortedTokens.length > 0 ? (
-            <div className="p-2">
-              <div className="space-y-1">
-                {sortedTokens.map(token => (
-                  <TokenRow
-                    key={token.address}
-                    token={token}
-                    isFavorite={favoriteTokens.includes(token.address)}
-                    onSelect={() => onSelect(token)}
-                    onToggleFavorite={() => toggleFavorite(token.address)}
-                  />
-                ))}
-              </div>
+          ) : hasTokenError ? (
+            <div className="flex flex-col items-center justify-center h-40 p-4">
+              <AlertCircle size={24} className="text-red-500 mb-2" />
+              <p className="text-sm text-red-400 mb-4 text-center">
+                Error loading tokens. Please try again later.
+              </p>
+              <button 
+                onClick={handleRetryFetch}
+                className="flex items-center gap-2 bg-[#2D3548] hover:bg-[#3D4663] text-white rounded-lg px-4 py-2 text-sm"
+              >
+                <RefreshCw size={16} />
+                Retry
+              </button>
+            </div>
+          ) : displayTokens.length > 0 ? (
+            <div className="h-full">
+              <AutoSizer>
+                {({ height, width }) => (
+                  <List
+                    height={height}
+                    width={width}
+                    itemCount={displayTokens.length}
+                    itemSize={60} // Adjust based on your TokenRow height
+                    itemData={listData}
+                  >
+                    {Row}
+                  </List>
+                )}
+              </AutoSizer>
             </div>
           ) : (
             <div className="py-10 px-4 text-center">
-              <p className="text-[#94A3B8] mb-2 uppercase tracking-wider">
-                No tokens found
-              </p>
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery('')}
-                  className="bg-[#2D3548] hover:bg-[#3D4663] text-white rounded-lg px-4 py-2 text-sm"
-                >
-                  Clear search
-                </button>
+              {activeTab === 'favorites' && favoriteTokens.length === 0 ? (
+                <p className="text-[#94A3B8] mb-2 uppercase tracking-wider">
+                  No favorite tokens yet
+                </p>
+              ) : searchQuery ? (
+                <>
+                  <p className="text-[#94A3B8] mb-2 uppercase tracking-wider">
+                    No tokens found matching "{searchQuery}"
+                  </p>
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="bg-[#2D3548] hover:bg-[#3D4663] text-white rounded-lg px-4 py-2 text-sm"
+                  >
+                    Clear search
+                  </button>
+                </>
+              ) : (
+                <p className="text-[#94A3B8] mb-2 uppercase tracking-wider">
+                  No tokens available
+                </p>
               )}
             </div>
           )}

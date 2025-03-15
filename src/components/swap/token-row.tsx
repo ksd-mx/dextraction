@@ -1,5 +1,4 @@
-'use client';
-
+import { memo } from 'react';
 import { Star } from 'lucide-react';
 import { cn, formatNumber } from '@/lib/utils';
 import { TokenInfo } from '@/types/token';
@@ -12,27 +11,39 @@ interface TokenRowProps {
   onToggleFavorite: () => void;
 }
 
-export default function TokenRow({ token, isFavorite, onSelect, onToggleFavorite }: TokenRowProps) {
+// Using memo to prevent unnecessary re-renders
+const TokenRow = memo(function TokenRow({ 
+  token, 
+  isFavorite, 
+  onSelect, 
+  onToggleFavorite 
+}: TokenRowProps) {
+  // Prepare image fallback
+  const imageFallback = `https://ui-avatars.com/api/?name=${token.symbol}&background=3D4663&color=fff&size=128`;
+
   return (
     <div className="flex items-center justify-between px-3 py-2 hover:bg-[#202535] rounded-lg cursor-pointer transition">
       <div className="flex items-center gap-3" onClick={onSelect}>
-        {token.logoURI ? (
-          <Image 
-            src={token.logoURI} 
-            alt={token.symbol} 
-            width={32} 
-            height={32} 
-            className="rounded-full w-8 h-8"
-            onError={(e) => {
-              // On error, replace with a fallback
-              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${token.symbol}&background=3D4663&color=fff&size=128`;
-            }}
-          />
-        ) : (
-          <div className="w-8 h-8 bg-[#3D4663] rounded-full flex items-center justify-center font-medium">
-            {token.symbol.charAt(0)}
-          </div>
-        )}
+        {/* Use next/image with priority for tokens likely to be visible */}
+        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+          {token.logoURI ? (
+            <Image 
+              src={token.logoURI} 
+              alt={token.symbol} 
+              width={32} 
+              height={32}
+              className="rounded-full w-8 h-8 object-cover"
+              loading="lazy"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = imageFallback;
+              }}
+            />
+          ) : (
+            <div className="w-8 h-8 bg-[#3D4663] rounded-full flex items-center justify-center font-medium">
+              {token.symbol.charAt(0)}
+            </div>
+          )}
+        </div>
         <div>
           <div className="font-medium uppercase tracking-wider">{token.symbol}</div>
           <div className="text-xs text-[#94A3B8] truncate max-w-[120px]">{token.name}</div>
@@ -59,6 +70,7 @@ export default function TokenRow({ token, isFavorite, onSelect, onToggleFavorite
             onToggleFavorite();
           }}
           className="text-[#94A3B8] hover:text-[#AFD803] transition p-1"
+          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
           <Star 
             size={16} 
@@ -70,4 +82,15 @@ export default function TokenRow({ token, isFavorite, onSelect, onToggleFavorite
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  // Only re-render if one of these properties has changed
+  return (
+    prevProps.token.address === nextProps.token.address &&
+    prevProps.token.balance === nextProps.token.balance &&
+    prevProps.token.price === nextProps.token.price &&
+    prevProps.isFavorite === nextProps.isFavorite
+  );
+});
+
+export default TokenRow;

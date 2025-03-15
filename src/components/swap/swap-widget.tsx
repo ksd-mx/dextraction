@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, RefreshCw, ArrowRight } from 'lucide-react';
+import { Settings, RefreshCw, AlertCircle } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { cn } from '@/lib/utils';
 import SettingsModal from '@/components/swap/settings-modal';
@@ -14,7 +14,15 @@ import SwapStats from '@/components/swap/swap-stats';
 
 export default function SwapWidget() {
   const { isConnected, openWalletModal, publicKey, signTransaction } = useWallet();
-  const { fetchTokenBalances, fetchAllTokens, tokens, isLoadingTokens } = useTokenStore();
+  const { 
+    fetchTokenBalances, 
+    fetchAllTokens, 
+    tokens, 
+    isLoadingTokens, 
+    hasTokenError, 
+    resetErrorState
+  } = useTokenStore();
+  
   const { 
     fromToken, 
     toToken, 
@@ -33,10 +41,12 @@ export default function SwapWidget() {
     initializeDefaultTokens
   } = useSwapStore();
   
+  const [retryAttempts, setRetryAttempts] = useState(0);
+  
   // Fetch token list on initial load
   useEffect(() => {
     if (tokens.length === 0 && !isLoadingTokens) {
-      fetchAllTokens();
+      fetchAllTokens().catch(console.error);
     }
   }, [tokens.length, fetchAllTokens, isLoadingTokens]);
   
@@ -55,7 +65,7 @@ export default function SwapWidget() {
   // Fetch token balances when wallet is connected
   useEffect(() => {
     if (isConnected && publicKey) {
-      fetchTokenBalances(publicKey);
+      fetchTokenBalances(publicKey).catch(console.error);
     }
   }, [isConnected, publicKey, fetchTokenBalances]);
   
@@ -80,7 +90,7 @@ export default function SwapWidget() {
     if (success) {
       // Refresh token balances after swap
       if (publicKey) {
-        fetchTokenBalances(publicKey);
+        fetchTokenBalances(publicKey).catch(console.error);
       }
     }
   };
@@ -88,11 +98,57 @@ export default function SwapWidget() {
   // Handle refresh balances button
   const handleRefreshBalances = () => {
     if (isConnected && publicKey) {
-      fetchTokenBalances(publicKey);
+      fetchTokenBalances(publicKey).catch(console.error);
     }
   };
   
+  // Handle token fetch retry
+  const handleRetryTokenFetch = () => {
+    resetErrorState();
+    setRetryAttempts(prev => prev + 1);
+    fetchAllTokens().catch(console.error);
+  };
+  
   const hasError = priceImpact > 15;
+  
+  // Render different states based on token loading
+  if (isLoadingTokens) {
+    return (
+      <div className="jupiter-card overflow-hidden shadow-lg p-6">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin mb-4">
+            <RefreshCw size={32} className="text-[#AFD803]" />
+          </div>
+          <p className="text-lg font-medium uppercase tracking-wider mb-2">Loading Tokens</p>
+          <p className="text-[#94A3B8] text-sm text-center">
+            Please wait while we fetch the latest token data...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render error state if token fetch failed
+  if (hasTokenError && tokens.length === 0) {
+    return (
+      <div className="jupiter-card overflow-hidden shadow-lg p-6">
+        <div className="flex flex-col items-center justify-center py-8">
+          <AlertCircle size={32} className="text-red-500 mb-4" />
+          <p className="text-lg font-medium uppercase tracking-wider mb-2">Token Loading Error</p>
+          <p className="text-[#94A3B8] text-sm text-center mb-4">
+            We couldn't load the token list. Please try again.
+          </p>
+          <button
+            onClick={handleRetryTokenFetch}
+            className="jupiter-button px-6 py-3 flex items-center gap-2"
+          >
+            <RefreshCw size={16} />
+            <span>Retry Loading</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="jupiter-card overflow-hidden shadow-lg">
@@ -100,6 +156,17 @@ export default function SwapWidget() {
       <div className="flex items-center justify-between p-4 border-b border-[#2D3548]">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold uppercase tracking-wider">Swap</h2>
+          {hasTokenError && tokens.length > 0 && (
+            <div className="flex items-center gap-1 text-yellow-500 text-xs">
+              <AlertCircle size={14} />
+              <button 
+                onClick={handleRetryTokenFetch}
+                className="underline hover:text-yellow-400 uppercase tracking-wider"
+              >
+                Retry Token Load
+              </button>
+            </div>
+          )}
         </div>
         
         {/* Slippage and settings buttons */}
