@@ -5,7 +5,6 @@ import {
   ConnectionProvider,
   WalletProvider,
 } from '@solana/wallet-adapter-react';
-import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
@@ -19,9 +18,6 @@ import {
 import { config } from '@/lib/config';
 
 export const WalletConnectionProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
-  // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'
-  const network = (config.solana.network as WalletAdapterNetwork) || WalletAdapterNetwork.Devnet;
-
   // You can also provide a custom RPC endpoint
   const endpoint = config.solana.rpcUrl || 'https://api.testnet.solana.com';
 
@@ -37,7 +33,7 @@ export const WalletConnectionProvider: FC<{ children: React.ReactNode }> = ({ ch
       new MathWalletAdapter(),
       new TokenPocketWalletAdapter(),
     ],
-    [network]
+    []
   );
 
   return (

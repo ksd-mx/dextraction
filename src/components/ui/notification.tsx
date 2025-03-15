@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { useNotificationStore } from '@/store/notification-store';
-import { Notification as NotificationType, NotificationPosition } from '@/types/notification';
+import { Notification as NotificationType } from '@/types/notification';
 import { cn } from '@/lib/utils';
 
 export default function NotificationSystem() {
@@ -48,12 +48,12 @@ interface NotificationItemProps {
 function NotificationItem({ notification, onClose }: NotificationItemProps) {
   const [isExiting, setIsExiting] = useState(false);
   
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsExiting(true);
     setTimeout(() => {
       onClose();
     }, 300); // Match this with the CSS transition duration
-  };
+  }, [onClose]);
 
   useEffect(() => {
     const newElement = document.getElementById(`notification-${notification.id}`);
@@ -75,7 +75,7 @@ function NotificationItem({ notification, onClose }: NotificationItemProps) {
       
       return () => clearTimeout(timer);
     }
-  }, [notification]);
+  }, [notification, handleClose]);
 
   const icons = {
     success: <CheckCircle className="h-5 w-5 text-[#AFD803]" />,

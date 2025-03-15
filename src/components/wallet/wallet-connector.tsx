@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useWallet } from '@/hooks/use-wallet';
 import { X, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface WalletConnectorProps {
   onClose: () => void;
@@ -134,7 +135,7 @@ export default function WalletConnector({ onClose }: WalletConnectorProps) {
                 >
                   <div className="w-10 h-10 rounded-full bg-[#3D4663] flex items-center justify-center">
                     {wallet.icon ? (
-                      <img src={wallet.icon} alt={wallet.name} className="w-6 h-6" />
+                      <Image src={wallet.icon} alt={wallet.name} width={24} height={24} />
                     ) : (
                       <span className="text-lg">{wallet.name.charAt(0)}</span>
                     )}
@@ -173,10 +174,11 @@ export default function WalletConnector({ onClose }: WalletConnectorProps) {
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-3 rounded-lg bg-[#2D3548] hover:bg-[#3D4663] transition text-sm uppercase tracking-wider"
             >
-              <img 
+              <Image 
                 src="https://phantom.app/img/phantom-logo.svg" 
                 alt="Phantom Logo" 
-                className="w-6 h-6"
+                width={24} 
+                height={24}
               />
               <span>Get Phantom Wallet</span>
             </a>

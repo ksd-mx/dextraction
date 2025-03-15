@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Settings, ChevronDown, Copy, ExternalLink, Power, ChevronUp } from 'lucide-react';
 import { APP_NAME } from '@/lib/constants';
 import { showNotification } from '@/store/notification-store';
+import Image from 'next/image';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -143,7 +144,7 @@ export default function Navbar() {
                     <div className="flex items-center space-x-2">
                       <div className="w-5 h-5 bg-[#3D4663] rounded-full flex items-center justify-center text-xs">
                         {wallet?.icon ? (
-                          <img src={wallet.icon} alt={wallet.name} className="w-3 h-3" />
+                          <Image src={wallet.icon} alt={wallet.name} width={16} height={16} className="w-4 h-4" />
                         ) : (
                           wallet?.name.charAt(0)
                         )}
@@ -166,7 +167,7 @@ export default function Navbar() {
                       <div className="wallet-menu-item text-small tracking-wider">
                         <div className="w-6 h-6 bg-[#3D4663] rounded-full flex items-center justify-center text-xs">
                           {wallet?.icon ? (
-                            <img src={wallet.icon} alt={wallet.name} className="w-4 h-4" />
+                            <Image src={wallet.icon} alt={wallet.name} width={16} height={16} className="w-4 h-4" />
                           ) : (
                             wallet?.name.charAt(0)
                           )}

@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-
 // More visually appealing Stars component with different sizes and animation
 function Stars() {
   // Generate 150 stars with varying properties
