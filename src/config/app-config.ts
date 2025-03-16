@@ -1,12 +1,10 @@
 // Environment variables config manager
 
-import { DEFAULT_SLIPPAGE } from "@/constants/app.constants";
-
 export const config = {
-    solana: {
-      rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
-      network: process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta',
-    },
+  solana: {
+    rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.testnet.solana.com',
+    network: process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'testnet',
+  },
     app: {
       name: process.env.NEXT_PUBLIC_APP_NAME || 'DEXTRACT',
       url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',

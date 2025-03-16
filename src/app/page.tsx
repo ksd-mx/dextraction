@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { BackgroundEffects } from '@/components/ui/effects/background-effects.component';
+import { WalletDebug } from '@/components/wallet/wallet-debug.component';
 
 export default function Home() {
   const [hasMounted, setHasMounted] = useState(false);
@@ -17,7 +18,7 @@ export default function Home() {
       {hasMounted && <BackgroundEffects />}
       
       <div className="z-10 w-full max-w-md mx-auto">
-        
+        <WalletDebug />
       </div>
     </div>
   );

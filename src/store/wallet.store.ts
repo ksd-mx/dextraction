@@ -1,7 +1,7 @@
 // src/store/wallet/wallet.store.ts
 import { create } from 'zustand';
 import { Transaction } from '@solana/web3.js';
-import { WalletService } from '@/services/wallet/wallet.service';
+import { WalletService } from '@/services/wallet.service';
 import { Wallet, WalletState } from '@/types/wallet.types';
 import { showNotification } from '@/store/notification.store';
 

@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useWallet } from '@/hooks/use-wallet.hook';
 import { X, Info } from 'lucide-react';
+import { cn } from '@/utils/class-name.util';
 import Image from 'next/image';
-import { useWalletConnection } from '@/hooks/wallet/use-wallet-connection.hook';
 
 interface WalletConnectorProps {
   onClose: () => void;
 }
 
-export function WalletConnector({ onClose }: WalletConnectorProps) {
-  const { availableWallets, connect, connectionError } = useWalletConnection();
+export default function WalletConnector({ onClose }: WalletConnectorProps) {
+  const { availableWallets, connect, connectionError } = useWallet();
+  const [selectedCategory, setSelectedCategory] = useState<'installed' | 'popular' | 'more'>('installed');
 
   // Close on escape key
   useEffect(() => {
@@ -39,13 +41,28 @@ export function WalletConnector({ onClose }: WalletConnectorProps) {
     }
   };
 
+  // Group wallets by category
+  const installedWallets = availableWallets.filter(wallet => wallet.id === 'Phantom' || wallet.id === 'Solflare');
+  const popularWallets = availableWallets.filter(wallet => 
+    ['Backpack', 'Glow', 'Brave', 'Coinbase Wallet'].includes(wallet.id)
+  );
+  const moreWallets = availableWallets.filter(wallet => 
+    !installedWallets.concat(popularWallets).find(w => w.id === wallet.id)
+  );
+
+  // Determine which wallets to display based on the selected category
+  const walletsToDisplay = selectedCategory === 'installed' 
+    ? installedWallets 
+    : selectedCategory === 'popular' 
+      ? popularWallets 
+      : moreWallets;
+
   return (
     <div 
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={handleBackdropClick}
     >
-      <div className="w-full sm:max-w-md sm:rounded-xl bg-[#1B2131] border border-[#2D3548] shadow-xl overflow-auto max-h-[80vh]" 
-           onClick={e => e.stopPropagation()}>
+      <div className="w-full sm:max-w-md sm:rounded-xl bg-[#1B2131] border border-[#2D3548] shadow-xl overflow-auto max-h-[80vh]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-[#2D3548]">
           <h2 className="text-base font-medium uppercase tracking-wider">Connect Wallet</h2>
           <button 
@@ -70,10 +87,47 @@ export function WalletConnector({ onClose }: WalletConnectorProps) {
             </div>
           )}
           
+          {/* Wallet category tabs */}
+          <div className="flex border-b border-[#2D3548] mb-4">
+            <button 
+              onClick={() => setSelectedCategory('installed')}
+              className={cn(
+                "py-2 px-4 text-sm uppercase tracking-wider transition",
+                selectedCategory === 'installed' 
+                  ? "border-b-2 border-[#AFD803] text-white" 
+                  : "text-[#94A3B8] hover:text-white"
+              )}
+            >
+              Installed
+            </button>
+            <button 
+              onClick={() => setSelectedCategory('popular')}
+              className={cn(
+                "py-2 px-4 text-sm uppercase tracking-wider transition",
+                selectedCategory === 'popular' 
+                  ? "border-b-2 border-[#AFD803] text-white" 
+                  : "text-[#94A3B8] hover:text-white"
+              )}
+            >
+              Popular
+            </button>
+            <button 
+              onClick={() => setSelectedCategory('more')}
+              className={cn(
+                "py-2 px-4 text-sm uppercase tracking-wider transition",
+                selectedCategory === 'more' 
+                  ? "border-b-2 border-[#AFD803] text-white" 
+                  : "text-[#94A3B8] hover:text-white"
+              )}
+            >
+              More
+            </button>
+          </div>
+          
           {/* Wallet grid */}
-          {availableWallets.length > 0 ? (
+          {walletsToDisplay.length > 0 ? (
             <div className="grid grid-cols-3 gap-2 mb-6">
-              {availableWallets.map(wallet => (
+              {walletsToDisplay.map(wallet => (
                 <button
                   key={wallet.id}
                   onClick={() => handleConnect(wallet.id)}
@@ -93,7 +147,11 @@ export function WalletConnector({ onClose }: WalletConnectorProps) {
           ) : (
             <div className="py-6 text-center">
               <p className="text-[#94A3B8] mb-4 uppercase tracking-wider">
-                No wallets available
+                {selectedCategory === 'installed' 
+                  ? 'No wallets installed' 
+                  : selectedCategory === 'popular' 
+                    ? 'No popular wallets available' 
+                    : 'No additional wallets available'}
               </p>
               
               <button
@@ -116,7 +174,12 @@ export function WalletConnector({ onClose }: WalletConnectorProps) {
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-3 rounded-lg bg-[#2D3548] hover:bg-[#3D4663] transition text-sm uppercase tracking-wider"
             >
-              <div className="w-6 h-6 bg-[#3D4663] rounded-full flex items-center justify-center">P</div>
+              <Image 
+                src="https://phantom.app/img/phantom-logo.svg" 
+                alt="Phantom Logo" 
+                width={24} 
+                height={24}
+              />
               <span>Get Phantom Wallet</span>
             </a>
           </div>

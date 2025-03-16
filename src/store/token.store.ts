@@ -1,9 +1,8 @@
-// src/store/token/token.store.ts
+// src/store/token.store.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TokenInfo } from '@/types/token.types';
-import { TokenApiService } from '@/api/token/token-api.service';
-import { showNotification } from '@/store/notification.store';
+import { tokenService } from '@/services/token.service';
 import { POPULAR_TOKEN_ADDRESSES } from '@/constants/token.constants';
 
 interface TokenState {
@@ -22,9 +21,6 @@ interface TokenState {
   fetchAllTokens: () => Promise<TokenInfo[]>;
   fetchTokenBalances: (walletAddress: string) => Promise<void>;
 }
-
-// Create token API service instance
-const tokenApiService = new TokenApiService();
 
 export const useTokenStore = create<TokenState>()(
   persist(
@@ -63,51 +59,19 @@ export const useTokenStore = create<TokenState>()(
         try {
           set({ isLoadingTokens: true });
           
-          // Fetch tokens from API
-          const tokens = await tokenApiService.getTokens();
-          
-          // Fetch token prices
-          const priceMap = await tokenApiService.getTokenPrices();
-          
-          // Update tokens with prices
-          const tokensWithPrices = tokens.map(token => ({
-            ...token,
-            price: priceMap[token.address] || 0
-          }));
-          
-          // Filter out tokens with no price (likely spam or very low liquidity)
-          const validTokens = tokensWithPrices.filter(token => 
-            // Keep popular tokens even without price
-            get().popularTokens.includes(token.address) || token.price > 0
-          );
+          // Use the token service to get tokens
+          const tokens = await tokenService.getTokens(true);
           
           // If this is the first load, and there are no favorites yet, add some defaults
           if (get().favoriteTokens.length === 0) {
             set({ favoriteTokens: POPULAR_TOKEN_ADDRESSES.slice(0, 5) });
           }
           
-          // Sort by popularity and price
-          const sortedTokens = validTokens.sort((a, b) => {
-            const aIsPopular = get().popularTokens.includes(a.address);
-            const bIsPopular = get().popularTokens.includes(b.address);
-            
-            if (aIsPopular && !bIsPopular) return -1;
-            if (!aIsPopular && bIsPopular) return 1;
-            
-            // Then sort by market cap (approximated by price)
-            return b.price - a.price;
-          });
-          
-          set({ tokens: sortedTokens, isLoadingTokens: false });
-          return sortedTokens;
+          set({ tokens, isLoadingTokens: false });
+          return tokens;
         } catch (error) {
           console.error('Error fetching tokens:', error);
           set({ isLoadingTokens: false });
-          showNotification({
-            type: 'error',
-            title: 'Error fetching tokens',
-            message: 'Could not load token list'
-          });
           throw error;
         }
       },
@@ -124,13 +88,11 @@ export const useTokenStore = create<TokenState>()(
             await get().fetchAllTokens();
           }
           
-          // Get token balances from API
-          const balances = await tokenApiService.getTokenBalances({
-            walletAddress
-          });
+          // Get token balances from service
+          const balances = await tokenService.getTokenBalances(walletAddress);
           
           // Update tokens with balances
-          const tokensWithBalances = tokens.map(token => ({
+          const tokensWithBalances = get().tokens.map(token => ({
             ...token,
             balance: balances[token.address] || 0
           }));
@@ -139,11 +101,7 @@ export const useTokenStore = create<TokenState>()(
         } catch (error) {
           console.error('Error fetching token balances:', error);
           set({ isLoadingBalances: false });
-          showNotification({
-            type: 'error',
-            title: 'Error fetching balances',
-            message: error instanceof Error ? error.message : 'Could not load token balances'
-          });
+          throw error;
         }
       },
     }),

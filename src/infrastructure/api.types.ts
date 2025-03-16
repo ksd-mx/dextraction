@@ -1,6 +1,10 @@
+// src/infrastructure/api/api.types.ts
 import { TokenInfo } from '@/types/token.types';
+import { SwapQuoteResponse, TransactionResponse } from '@/types/swap.types';
 
-// API request parameters
+/**
+ * Token API request and response interfaces
+ */
 export interface GetTokensParams {
   chainId?: string;       // Chain ID to filter tokens by
   includePrice?: boolean; // Whether to include token prices
@@ -17,7 +21,6 @@ export interface GetTokenBalancesParams {
   walletAddress: string;  // Wallet address to get balances for
 }
 
-// API response types
 export interface TokenListResponse {
   tokens: TokenInfo[];
 }
@@ -30,7 +33,26 @@ export interface TokenBalancesResponse {
   balances: Record<string, number>; // Map of token address to balance
 }
 
-// API error response
+/**
+ * Swap API request and response interfaces
+ */
+export interface SwapQuoteRequest {
+  inputMint: string;
+  outputMint: string;
+  amount: number;
+  slippageBps: number;
+  onlyDirectRoutes?: boolean;
+}
+
+export interface SwapTransactionRequest {
+  quoteResponse: SwapQuoteResponse;
+  userPublicKey: string;
+  wrapAndUnwrapSol?: boolean;
+}
+
+/**
+ * API error response
+ */
 export interface ApiErrorResponse {
   code: string;
   message: string;

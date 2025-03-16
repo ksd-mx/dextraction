@@ -1,5 +1,5 @@
-import { ApiClient } from '@/api/api-client.service';
-import { TOKEN_API_ENDPOINTS } from '@/api/token/token-api.constants';
+import { ApiClient, apiClient } from '@/infrastructure/api.client';
+import { TOKEN_API_ENDPOINTS } from '@/infrastructure/api.constants';
 import { 
   GetTokensParams, 
   GetTokenPricesParams, 
@@ -7,20 +7,23 @@ import {
   TokenListResponse,
   TokenPricesResponse,
   TokenBalancesResponse
-} from './token-api.types';
+} from '@/infrastructure/api.types';
 import { TokenInfo } from '@/types/token.types';
 
-export class TokenApiService {
+/**
+ * Adapter for token-related API operations
+ */
+export class TokenApiAdapter {
   private apiClient: ApiClient;
   
-  constructor(apiClient?: ApiClient) {
-    this.apiClient = apiClient || new ApiClient();
+  constructor(client: ApiClient = apiClient) {
+    this.apiClient = client;
   }
   
   /**
-   * Get tokens with optional parameters
+   * Fetch all tokens or filtered by params
    */
-  async getTokens(params?: GetTokensParams): Promise<TokenInfo[]> {
+  async fetchTokens(params?: GetTokensParams): Promise<TokenInfo[]> {
     try {
       const response = await this.apiClient.get<TokenListResponse>(
         TOKEN_API_ENDPOINTS.TOKENS,
@@ -34,9 +37,9 @@ export class TokenApiService {
   }
   
   /**
-   * Get token prices with optional filtering
+   * Fetch token prices
    */
-  async getTokenPrices(params?: GetTokenPricesParams): Promise<Record<string, number>> {
+  async fetchTokenPrices(params?: GetTokenPricesParams): Promise<Record<string, number>> {
     try {
       const response = await this.apiClient.get<TokenPricesResponse>(
         TOKEN_API_ENDPOINTS.TOKEN_PRICES,
@@ -50,9 +53,9 @@ export class TokenApiService {
   }
   
   /**
-   * Get token balances for a wallet
+   * Fetch token balances for a wallet
    */
-  async getTokenBalances(params: GetTokenBalancesParams): Promise<Record<string, number>> {
+  async fetchTokenBalances(params: GetTokenBalancesParams): Promise<Record<string, number>> {
     try {
       const response = await this.apiClient.get<TokenBalancesResponse>(
         TOKEN_API_ENDPOINTS.TOKEN_BALANCES,
@@ -66,40 +69,31 @@ export class TokenApiService {
   }
   
   /**
-   * Get popular tokens
+   * Fetch token by address
    */
-  async getPopularTokens(): Promise<TokenInfo[]> {
+  async fetchTokenByAddress(address: string): Promise<TokenInfo | undefined> {
     try {
-      return this.getTokens({ popular: true });
-    } catch (error) {
-      console.error('Failed to fetch popular tokens:', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Get token by symbol
-   */
-  async getTokenBySymbol(symbol: string): Promise<TokenInfo | undefined> {
-    try {
-      const allTokens = await this.getTokens();
-      return allTokens.find(token => token.symbol === symbol);
-    } catch (error) {
-      console.error(`Failed to fetch token with symbol ${symbol}:`, error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Get token by address
-   */
-  async getTokenByAddress(address: string): Promise<TokenInfo | undefined> {
-    try {
-      const allTokens = await this.getTokens();
+      const allTokens = await this.fetchTokens();
       return allTokens.find(token => token.address === address);
     } catch (error) {
       console.error(`Failed to fetch token with address ${address}:`, error);
       throw error;
     }
   }
+  
+  /**
+   * Fetch token by symbol
+   */
+  async fetchTokenBySymbol(symbol: string): Promise<TokenInfo | undefined> {
+    try {
+      const allTokens = await this.fetchTokens();
+      return allTokens.find(token => token.symbol === symbol);
+    } catch (error) {
+      console.error(`Failed to fetch token with symbol ${symbol}:`, error);
+      throw error;
+    }
+  }
 }
+
+// Export a singleton instance for convenience
+export const tokenApiAdapter = new TokenApiAdapter();

@@ -3,15 +3,15 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useWalletConnection } from '@/hooks/wallet/use-wallet-connection.hook';
-import { WalletConnector } from '@/components/wallet/wallet-connector.component';
+import { useWallet } from '@/hooks/use-wallet.hook';
+import WalletConnector from '@/components/wallet/wallet-connector.component';
 import ComingSoonModal from '@/components/ui/modal/coming-soon.component';
 import SettingsModal from '@/components/swap/swap-settings.component';
 import { cn } from '@/utils/class-name.util';
 import { Settings, ChevronDown, Copy, ExternalLink, Power, ChevronUp } from 'lucide-react';
+import { config } from '@/config/app-config';
 import { showNotification } from '@/utils/notification.utils';
 import Image from 'next/image';
-import { config } from '@/config/app-config';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -26,7 +26,7 @@ export default function Navbar() {
     toggleWalletMenu,
     closeWalletMenu,
     disconnect
-  } = useWalletConnection();
+  } = useWallet();
   
   const [isComingSoonModalOpen, setIsComingSoonModalOpen] = useState(false);
   const [featureName, setFeatureName] = useState('');
@@ -66,7 +66,7 @@ export default function Navbar() {
       navigator.clipboard.writeText(publicKey);
       showNotification.success(
         'ADDRESS COPIED',
-        `Wallet address copied to clipboard`
+        'Wallet address copied to clipboard'
       );
       closeWalletMenu();
     }
@@ -75,9 +75,10 @@ export default function Navbar() {
   // Handle disconnect
   const handleDisconnect = async () => {
     await disconnect();
-    showNotification.success(
+    showNotification.info(
       'WALLET DISCONNECTED',
-      `Wallet disconnected`
+      'Your wallet has been disconnected',
+      { position: 'bottom' }
     );
   };
 
@@ -92,9 +93,7 @@ export default function Navbar() {
                 <div className="w-8 h-8 bg-[#AFD803] rounded-full flex items-center justify-center">
                   <span className="text-[#111827] font-bold text-xl">D</span>
                 </div>
-                <span className="text-l font-bold text-white uppercase tracking-wider hidden sm:block">
-                  {config.app.name}
-                </span>
+                <span className="text-l font-bold text-white uppercase tracking-wider hidden sm:block">{config.app.name}</span>
               </Link>
             </div>
             

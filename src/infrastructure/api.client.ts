@@ -1,6 +1,9 @@
-// Base API client setup with error handling and request/response formatting
+// src/infrastructure/api/client.ts
 import { config } from '@/config/app-config';
 
+/**
+ * Base HTTP client for API requests
+ */
 export class ApiClient {
   private baseUrl: string;
   private defaultHeaders: Record<string, string>;
@@ -13,7 +16,9 @@ export class ApiClient {
     };
   }
   
-  // Generic method to handle GET requests
+  /**
+   * Perform a GET request
+   */
   async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
     try {
       const url = this.buildUrl(endpoint, params);
@@ -29,7 +34,9 @@ export class ApiClient {
     }
   }
   
-  // Generic method to handle POST requests
+  /**
+   * Perform a POST request
+   */
   async post<T>(endpoint: string, data?: any): Promise<T> {
     try {
       const url = this.buildUrl(endpoint);
@@ -46,7 +53,9 @@ export class ApiClient {
     }
   }
   
-  // Helper to build URL with query parameters
+  /**
+   * Build a URL with query parameters
+   */
   private buildUrl(endpoint: string, params?: Record<string, any>): string {
     const url = new URL(`${this.baseUrl}${endpoint}`);
     
@@ -61,10 +70,11 @@ export class ApiClient {
     return url.toString();
   }
   
-  // Helper to handle response parsing and error detection
+  /**
+   * Handle response parsing and error detection
+   */
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      // Try to parse error response for better error messages
       try {
         const errorData = await response.json();
         throw new Error(errorData.message || `API error: ${response.status}`);
@@ -73,12 +83,16 @@ export class ApiClient {
       }
     }
     
-    // For successful responses, parse JSON data
     return response.json();
   }
   
-  // Helper to handle and log errors
+  /**
+   * Handle and log errors
+   */
   private handleError(error: any, endpoint: string): void {
     console.error(`API error for ${endpoint}:`, error);
   }
 }
+
+// Export a singleton instance for convenience
+export const apiClient = new ApiClient();
