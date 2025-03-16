@@ -1,26 +1,336 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: 220 47% 5%;
+  --foreground: 0 0% 100%;
+  --card: 222 47% 9%;
+  --card-foreground: 0 0% 100%;
+  --primary: 140 70% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 20% 64%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 220 20% 30%;
+  --muted-foreground: 220 20% 70%;
+  --accent: 220 20% 15%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 50.6%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 20% 15%;
+  --input: 220 20% 15%;
+  --ring: 140 70% 60%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--secondary));
+}
+
+/* Remove spinner buttons from number inputs */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+/* For Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+@layer base {
+  * {
+    @apply border-[hsl(var(--border))];
+  }
+  body {
+    @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))];
+  }
+}
+
+/* Jupiter-like UI styles */
+.jupiter-card {
+  background-color: #1B2131;
+  border: 1px solid #2D3548;
+  border-radius: 1rem;
+}
+
+.jupiter-input {
+  background-color: transparent;
+  color: white;
+  font-size: 1.5rem;
+  width: 100%;
+}
+
+.jupiter-input:focus {
+  outline: none;
+}
+
+.jupiter-button {
+  background-color: #AFD803;
+  color: #111827;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.jupiter-button:hover {
+  background-color: #9DC503;
+}
+
+.jupiter-button:disabled {
+  background-color: #566040;
+  opacity: 0.7;
+}
+
+.jupiter-tag {
+  background-color: #2D3548;
+  color: #94A3B8;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+/* Wallet menu styles */
+.wallet-menu {
+  background-color: #1B2131;
+  border: 1px solid #2D3548;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.wallet-menu-item {
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.wallet-menu-item:hover {
+  background-color: #2D3548;
+}
+
+.wallet-menu-divider {
+  height: 1px;
+  background-color: #2D3548;
+  margin: 0.25rem 0;
+}
+
+/* Notification animations */
+@keyframes notification-enter {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-enter {
+  animation: notification-enter 0.3s ease-out forwards;
+}
+
+/* Space Background Styles */
+.space-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(-45deg, #0A0E17, #111827, #131D33, #0A101D);
+  background-size: 400% 400%;
+  animation: gradientAnimation 20s ease infinite;
+}
+
+.space-gradient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(19, 29, 51, 0.2) 0%, rgba(10, 14, 23, 0.5) 100%);
+  z-index: 1;
+}
+
+.space-light-sweep {
+  position: absolute;
+  width: 250%;
+  height: 250%;
+  top: -75%;
+  left: -75%;
+  background: linear-gradient(
+    100deg,
+    transparent 10%,
+    rgba(255, 255, 255, 0.01) 45%,
+    rgba(255, 255, 255, 0.03) 50%,
+    rgba(255, 255, 255, 0.01) 55%,
+    transparent 90%
+  );
+  transform-origin: center;
+  transform: rotate(-30deg);
+  animation: lightSweep 15s cubic-bezier(0.2, 0.6, 0.4, 0.8) infinite;
+  z-index: 3;
+}
+
+.space-orb-1 {
+  position: absolute;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 20%, rgba(63, 94, 138, 0.1) 0%, rgba(26, 36, 55, 0.05) 60%, transparent 100%);
+  right: -200px;
+  top: 20%;
+  z-index: 3;
+  filter: blur(50px);
+  opacity: 0.6;
+  animation: orb-pulse 20s ease-in-out infinite;
+}
+
+.space-orb-2 {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, rgba(77, 96, 130, 0.08) 0%, rgba(42, 52, 71, 0.04) 70%, transparent 100%);
+  left: -150px;
+  bottom: 10%;
+  z-index: 3;
+  filter: blur(40px);
+  opacity: 0.4;
+  animation: orb-pulse-2 24s ease-in-out infinite;
+}
+
+.space-glow-1 {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, rgba(64, 115, 189, 0.03) 0%, rgba(30, 58, 112, 0.02) 50%, transparent 100%);
+  filter: blur(60px);
+  top: 15%;
+  right: 20%;
+  z-index: 3;
+  animation: glow-pulse 12s ease-in-out infinite;
+}
+
+.space-glow-2 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 60% 60%, rgba(35, 73, 117, 0.03) 0%, rgba(30, 58, 112, 0.02) 60%, transparent 100%);
+  filter: blur(50px);
+  bottom: 25%;
+  left: 15%;
+  z-index: 3;
+  animation: glow-pulse-2 15s ease-in-out infinite;
+}
+
+.space-glow-3 {
+  position: absolute;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(100, 149, 237, 0.03) 0%, rgba(32, 50, 71, 0.02) 60%, transparent 100%);
+  filter: blur(40px);
+  top: 60%;
+  left: 45%;
+  z-index: 3;
+  animation: glow-pulse-3 18s ease-in-out infinite;
+}
+
+/* Star twinkling animation */
+@keyframes twinkle {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.animate-twinkle {
+  animation: twinkle ease-in-out infinite;
+}
+
+/* Animation keyframes */
+@keyframes gradientAnimation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes lightSweep {
+  0% {
+    transform: rotate(-30deg) translateX(-100%) translateY(0%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  80% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: rotate(-30deg) translateX(100%) translateY(0%);
+    opacity: 0;
+  }
+}
+
+@keyframes orb-pulse {
+  0% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+  100% { opacity: 0.4; transform: scale(1); }
+}
+
+@keyframes orb-pulse-2 {
+  0% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.08); }
+  100% { opacity: 0.3; transform: scale(1); }
+}
+
+@keyframes glow-pulse {
+  0% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+  100% { opacity: 0.4; transform: scale(1); }
+}
+
+@keyframes glow-pulse-2 {
+  0% { opacity: 0.3; transform: scale(1.1); }
+  50% { opacity: 0.6; transform: scale(1); }
+  100% { opacity: 0.3; transform: scale(1.1); }
+}
+
+@keyframes glow-pulse-3 {
+  0% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.15); }
+  100% { opacity: 0.5; transform: scale(1); }
 }

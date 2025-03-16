@@ -1,0 +1,62 @@
+/* Animation for notification entry */
+@keyframes notification-enter {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  /* Animation for notification exit */
+  @keyframes notification-exit {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(40px);
+    }
+  }
+  
+  /* Apply entry animation */
+  .animate-enter {
+    animation: notification-enter 0.3s ease-out forwards;
+  }
+  
+  /* Apply exit animation */
+  .notification-exit {
+    animation: notification-exit 0.3s ease-out forwards;
+  }
+  
+  /* Ensure notifications stack properly */
+  .notification-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 24rem; /* 384px */
+    z-index: 50;
+    position: fixed;
+  }
+  
+  .notification-container.top {
+    top: 1rem; /* 16px */
+    right: 1rem; /* 16px */
+  }
+  
+  .notification-container.bottom {
+    bottom: 1rem; /* 16px */
+    right: 1rem; /* 16px */
+  }
+  
+  /* Tablet and mobile adjustments */
+  @media (max-width: 640px) {
+    .notification-container {
+      max-width: calc(100% - 2rem);
+      padding: 0 1rem;
+    }
+  }

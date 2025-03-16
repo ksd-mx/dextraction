@@ -1,0 +1,67 @@
+Let's create a document with the implentation guidelines to recreate the frontend.
+
+I have attached the full codebase to this project.
+
+DOCUMENT GUIDELINES:
+
+* document should contain guidelines only. 
+    * no source code. 
+    * no commands. 
+    * no timelines.
+* document should break the refactor work in phases.
+    * by the end of each phase I should be able to run the code successfully.
+    * when I run the code I must be able to verify that it works.
+    * running the code will help me confirm we are in the right track.
+* document should be clear and concise.
+* document should include project folder structure.
+* document should describe the architecture and design patterns used.
+* document should include all the best practices used.
+* document include all pitfalls and caveats to avoid.
+
+SOLUTION GUIDELINES:
+
+* IMPORTANT: this frontend is doing too fucking much!
+    * all the API handling has move to a different project/repository.
+    * the new API (dextract-api) handles all-things API.
+    * whenever the dex needs data of any origin, it must use the new API.
+    * the new API has the sole responsibility to handle acccess to data.
+    * the new API has the responsibility to handle caching too.
+    * that means you should REMOVE all clutter and leave all to the new API.
+* the goals of this frontend are: 
+    * provide a stunning UX for the dextract-api.
+    * provide an amazing and secure wallet management experience.
+    * provide a smooth and secure transaction experience.
+    * interact with the dextract programs on chain.
+* you should apply all best possible practices.
+* you should consult the existing codebase to understand the project.
+* use all the best (most appropriate) design patterns to organize code.
+* use zustand to the fullest capabilities to optimize performance and flow.
+* ensure files are as small as they can be, splitting them to reduce size.
+   * smaller files broken into files and folders make it easier to maintain.
+   * smaller files are easier to read and edit.
+* use name conventions that make it easy to understand files purposes.
+   * maybe you could follow the nestjs naming convention.
+* If we need to move/create/edit/delete files we need to do it using commands.
+   * always give me the command lines that I can run myself. no scripts.
+* decouple business logic from presentation logic as much as possible.
+* do not under any circumstance bundle changes to multiple files.
+
+I will revise the document after each phase, and we are going to update it.
+
+Once I approve the implementation document, we can proceed to work on the source code.
+
+
+
+
+
+
+
+
+
+
+* do not under any circumstance bundle changes to multiple files.
+
+This frontend is greatly dependent on the backend I describe in the document attached to this message.
+Put all the contents of the plan in a document that I can attach to this project.
+
+PAY ATTENTION THAT I ALREADY HAVE A FUCKING API !!!!!!!!!!
