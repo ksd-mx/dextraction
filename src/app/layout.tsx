@@ -11,7 +11,6 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: `${config.app.name} - Solana DEX`,
   description: 'A full-stack, Solana-based Decentralized Exchange with integrated Yield Farming, Cross-Chain Stablecoin Deposits, and Lending functionality.',
-  keywords: 'Solana, DEX, DeFi, Swap, Tokens, Blockchain, Crypto, Trading, Yield Farming',
 };
 
 export default function RootLayout({
