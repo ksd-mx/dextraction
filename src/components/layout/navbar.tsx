@@ -7,9 +7,9 @@ import { useWallet } from '@/hooks/use-wallet';
 import WalletConnector from '@/components/wallet/wallet-connector';
 import ComingSoonModal from '@/components/ui/coming-soon-modal';
 import SettingsModal from '@/components/swap/settings-modal';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils/class-name.util';
 import { Settings, ChevronDown, Copy, ExternalLink, Power, ChevronUp } from 'lucide-react';
-import { APP_NAME } from '@/lib/constants';
+import { config } from '@/utils/config';
 import { showNotification } from '@/store/notification-store';
 import Image from 'next/image';
 
@@ -93,7 +93,9 @@ export default function Navbar() {
                 <div className="w-8 h-8 bg-[#AFD803] rounded-full flex items-center justify-center">
                   <span className="text-[#111827] font-bold text-xl">D</span>
                 </div>
-                <span className="text-l font-bold text-white uppercase tracking-wider hidden sm:block">{APP_NAME}</span>
+                <span className="text-l font-bold text-white uppercase tracking-wider hidden sm:block">
+                  {config.app.name}
+                </span>
               </Link>
             </div>
             

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { TokenInfo } from '@/types/token';
-import { fetchTokens, fetchTokenPrices, getTokenBalances } from '@/api/token-api';
+import { TokenInfo } from '@/core/types/token.types';
+import { tokenService } from '@/core/services/token.service';
 import { showNotification } from '@/store/notification-store';
 import { PublicKey } from '@solana/web3.js';
 
@@ -71,10 +71,10 @@ export const useTokenStore = create<TokenState>()(
           set({ isLoadingTokens: true });
           
           // Fetch tokens from Jupiter
-          const tokens = await fetchTokens();
+          const tokens = await tokenService.getTokens();
           
           // Fetch token prices
-          const priceMap = await fetchTokenPrices(tokens);
+          const priceMap = await tokenService.getTokenPrices();
           
           // Update tokens with prices
           const tokensWithPrices = tokens.map(token => ({
@@ -134,7 +134,7 @@ export const useTokenStore = create<TokenState>()(
           }
           
           // Get token balances
-          await getTokenBalances(walletAddress, tokens);
+          await tokenService.getTokenBalances(walletAddress);
           
           // Update tokens with balances
           const tokensWithBalances = tokens.map(token => ({

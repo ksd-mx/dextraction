@@ -1,14 +1,13 @@
 import { create } from 'zustand';
-import { DEFAULT_SLIPPAGE } from '@/lib/constants';
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { useTokenStore } from './token-store';
 import { showNotification } from './notification-store';
-import { TokenInfo } from '@/types/token';
-import { config } from '@/lib/config';
-import { getSwapQuote, getSwapTransaction } from '@/api/swap-api';
+import { TokenInfo } from '@/core/types/token.types';
+import { config } from '@/utils/config';
+import { swapService } from '@/core/services/swap.service';
 import { debounce, DebouncedFunc } from 'lodash';
-import { SwapQuoteResponse } from '@/types/market';
-import { MarketInfo } from '@/types/market';
+import { SwapQuoteResponse } from '@/core/types/swap.types';
+import { MarketInfo } from '@/core/types/swap.types';
 
 export type TransactionStatus = 'none' | 'processing' | 'success' | 'error';
 
@@ -60,12 +59,12 @@ const debouncedFetchPrice: DebouncedFunc<(state: SwapState, set: SetState) => Pr
     const inputAmount = Math.floor(fromAmount * (10 ** inputDecimals));
     
     // Get quote from Jupiter
-    const quoteResponse = await getSwapQuote({
-      inputMint: fromToken.address,
-      outputMint: toToken.address,
-      amount: inputAmount,
-      slippageBps: slippage,
-    });
+    const quoteResponse = await swapService.getSwapQuote(
+      fromToken,
+      toToken,
+      inputAmount,
+      slippage,
+    );
     
     // Convert output amount from lamports/smallest unit back to token amount
     const outputDecimals = toToken.decimals;
@@ -100,7 +99,7 @@ export const useSwapStore = create<SwapState>((set, get) => ({
   toToken: null,
   fromAmount: 0,
   estimatedOutput: 0,
-  slippage: DEFAULT_SLIPPAGE,
+  slippage: config.slippage,
   priceImpact: 0,
   isLoading: false,
   isConnected: false,
@@ -302,10 +301,10 @@ export const useSwapStore = create<SwapState>((set, get) => ({
     
     try {
       // Get the swap transaction
-      const transactionResponse = await getSwapTransaction({
-        quoteResponse: lastQuoteResponse,
-        userPublicKey: walletState.publicKey
-      });
+      const transactionResponse = await swapService.getSwapTransaction(
+        lastQuoteResponse,
+        walletState.publicKey
+      );
       
       // Deserialize the transaction
       const swapTransaction = Transaction.from(

@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, RefreshCw, ArrowRight } from 'lucide-react';
+import { Settings, RefreshCw } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils/class-name.util';
 import SettingsModal from '@/components/swap/settings-modal';
 import { useSwapStore } from '@/store/swap-store';
 import { useTokenStore } from '@/store/token-store';
-import { TokenInfo } from '@/types/token';
+import { TokenInfo } from '@/core/types/token.types';
 import TokenSelector from '@/components/swap/token-selector';
 import TokenAmountInput from '@/components/swap/token-amount-input';
 import SwapStats from '@/components/swap/swap-stats';

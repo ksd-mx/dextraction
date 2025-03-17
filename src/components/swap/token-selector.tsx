@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, Search, Loader2, Star } from 'lucide-react';
-import { cn, formatNumber } from '@/lib/utils';
+import { X, Search, Loader2 } from 'lucide-react';
+import { cn } from '@/utils/class-name.util';
 import { useTokenStore } from '@/store/token-store';
-import { TokenInfo } from '@/types/token';
+import { TokenInfo } from '@/core/types/token.types';
 import TokenRow from './token-row';
-import Image from 'next/image';
 
 interface TokenSelectorProps {
   onClose: () => void;

@@ -1,51 +1,17 @@
-'use client';
-
-import { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
-import { useNotificationStore } from '@/store/notification-store';
-import { Notification as NotificationType } from '@/core/types/notification.types';
+import { Notification } from './notification.types';
 import { cn } from '@/utils/class-name.util';
 
-export default function NotificationSystem() {
-  const { notifications, removeNotification } = useNotificationStore();
-  
-  // Group notifications by position
-  const topNotifications = notifications.filter(n => !n.position || n.position === 'top');
-  const bottomNotifications = notifications.filter(n => n.position === 'bottom');
-
-  return (
-    <>
-      {/* Top notifications */}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 max-w-md w-full">
-        {topNotifications.map((notification) => (
-          <NotificationItem 
-            key={notification.id} 
-            notification={notification} 
-            onClose={() => removeNotification(notification.id)} 
-          />
-        ))}
-      </div>
-      
-      {/* Bottom notifications */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-3 max-w-md w-full">
-        {bottomNotifications.map((notification) => (
-          <NotificationItem 
-            key={notification.id} 
-            notification={notification} 
-            onClose={() => removeNotification(notification.id)} 
-          />
-        ))}
-      </div>
-    </>
-  );
-}
-
 interface NotificationItemProps {
-  notification: NotificationType;
+  notification: Notification;
   onClose: () => void;
 }
 
-function NotificationItem({ notification, onClose }: NotificationItemProps) {
+export const NotificationItem: React.FC<NotificationItemProps> = ({ 
+  notification, 
+  onClose,
+}) => {
   const [isExiting, setIsExiting] = useState(false);
   
   const handleClose = useCallback(() => {
@@ -65,17 +31,15 @@ function NotificationItem({ notification, onClose }: NotificationItemProps) {
         }
       }, 300);
     }
-  }, [notification.id]);
-
-  useEffect(() => {
-    if (notification.autoClose) {
+    
+    // Auto-close after duration
+    if (notification.duration) {
       const timer = setTimeout(() => {
         handleClose();
-      }, notification.duration || 5000);
-      
+      }, notification.duration);
       return () => clearTimeout(timer);
     }
-  }, [notification, handleClose]);
+  }, [notification.id, notification.duration, handleClose]);
 
   const icons = {
     success: <CheckCircle className="h-5 w-5 text-[#AFD803]" />,
@@ -84,12 +48,17 @@ function NotificationItem({ notification, onClose }: NotificationItemProps) {
     warning: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
   };
 
+  // Theme-based colors
   const bgColors = {
     success: 'bg-[#1B2131] border border-[#AFD803]/30',
     error: 'bg-[#1B2131] border border-red-500/30',
     info: 'bg-[#1B2131] border border-blue-500/30',
     warning: 'bg-[#1B2131] border border-yellow-500/30',
   };
+
+  // Theme-based text colors
+  const textColor = 'text-white';
+  const mutedTextColor = 'text-[#94A3B8]';
 
   return (
     <div
@@ -105,16 +74,20 @@ function NotificationItem({ notification, onClose }: NotificationItemProps) {
           {icons[notification.type]}
         </div>
         <div className="ml-3 w-0 flex-1">
-          <p className="text-sm font-medium uppercase tracking-wider">{notification.title}</p>
-          <p className="mt-1 text-sm text-[#94A3B8]">{notification.message}</p>
+          <p className={cn("text-sm font-medium uppercase tracking-wider", textColor)}>
+            {notification.title}
+          </p>
+          <p className={cn("mt-1 text-sm", mutedTextColor)}>
+            {notification.message}
+          </p>
         </div>
         <button
           onClick={handleClose}
-          className="ml-4 shrink-0 flex text-[#94A3B8] hover:text-white focus:outline-none"
+          className={cn("ml-4 shrink-0 flex", mutedTextColor, "hover:text-white focus:outline-none")}
         >
           <X className="h-5 w-5" />
         </button>
       </div>
     </div>
   );
-}
+};

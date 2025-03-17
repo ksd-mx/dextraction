@@ -19,4 +19,10 @@ export const config = {
       enableCrossChainDeposits: process.env.NEXT_PUBLIC_ENABLE_CROSS_CHAIN_DEPOSITS === 'true',
       enableLending: process.env.NEXT_PUBLIC_ENABLE_LENDING === 'true',
     },
+    slippage: Number(process.env.NEXT_PUBLIC_SLIPPAGE || 0.5),
+    api: {
+      baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.dextract.fi',
+      timeout: Number(process.env.NEXT_PUBLIC_API_TIMEOUT || 30000),
+      retries: Number(process.env.NEXT_PUBLIC_API_RETRIES || 3),
+    },
   };

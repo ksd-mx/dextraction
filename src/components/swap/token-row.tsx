@@ -1,8 +1,9 @@
 'use client';
 
 import { Star } from 'lucide-react';
-import { cn, formatNumber } from '@/lib/utils';
-import { TokenInfo } from '@/types/token';
+import { cn } from '@/utils/class-name.util';
+import { formatNumber } from '@/utils/format-number.util';
+import { TokenInfo } from '@/core/types/token.types';
 import Image from 'next/image';
 
 interface TokenRowProps {

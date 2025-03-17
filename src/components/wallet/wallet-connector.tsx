@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useWallet } from '@/hooks/use-wallet';
 import { X, Info } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils/class-name.util';
 import Image from 'next/image';
 
 interface WalletConnectorProps {

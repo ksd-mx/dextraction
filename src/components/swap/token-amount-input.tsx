@@ -2,8 +2,8 @@
 
 import { Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { formatNumber } from '@/lib/utils';
-import { TokenInfo } from '@/types/token';
+import { formatNumber } from '@/utils/format-number.util';
+import { TokenInfo } from '@/core/types/token.types';
 
 interface TokenAmountInputProps {
   label: string;

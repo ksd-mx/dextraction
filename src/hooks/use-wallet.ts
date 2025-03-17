@@ -3,7 +3,7 @@ import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { WalletName, WalletReadyState } from '@solana/wallet-adapter-base';
 import { Transaction, Connection } from '@solana/web3.js';
 import { showNotification } from '@/store/notification-store';
-import { Wallet } from '@/types/wallet';
+import { Wallet } from '@/core/types/wallet.types';
 
 export function useWallet() {
   const { 

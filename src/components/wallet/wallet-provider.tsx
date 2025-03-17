@@ -15,7 +15,7 @@ import {
   CloverWalletAdapter,
   TokenPocketWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
-import { config } from '@/lib/config';
+import { config } from '@/utils/config';
 
 export const WalletConnectionProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
   // You can also provide a custom RPC endpoint

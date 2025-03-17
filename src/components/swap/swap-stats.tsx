@@ -1,8 +1,9 @@
 'use client';
 
 import { RefreshCw, Info } from 'lucide-react';
-import { cn, formatNumber } from '@/lib/utils';
-import { TokenInfo } from '@/types/token';
+import { cn } from '@/utils/class-name.util';
+import { formatNumber } from '@/utils/format-number.util';
+import { TokenInfo } from '@/core/types/token.types';
 
 interface SwapStatsProps {
   fromToken: TokenInfo | null;

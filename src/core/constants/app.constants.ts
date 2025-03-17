@@ -1,22 +1,17 @@
-import { config } from './config';
-
-export const APP_NAME = config.app.name;
+export const APP_NAME = 'DEXTRACT';
 
 // Network settings
-export const SOLANA_NETWORK = config.solana.network;
-export const SOLANA_RPC_URL = config.solana.rpcUrl;
+export const SOLANA_NETWORK = 'mainnet-beta'; // or 'testnet' or 'devnet'
+export const SOLANA_RPC_URL = 'https://api.mainnet-beta.solana.com';
 
 // Fee settings
-export const TRADING_FEE_PERCENT = config.fees.tradingFeePercent;
-export const LP_FEE_PERCENT = config.fees.lpFeePercent;
-export const PROTOCOL_FEE_PERCENT = config.fees.protocolFeePercent;
+export const TRADING_FEE_PERCENT = 0.3;
+export const LP_FEE_PERCENT = 0.25;
+export const PROTOCOL_FEE_PERCENT = 0.05;
 
 // Slippage settings
 export const DEFAULT_SLIPPAGE = 0.5;
 export const SLIPPAGE_OPTIONS = [0.1, 0.5, 1.0, 5.0];
-
-// Token lists
-export const TOKEN_LIST_URL = 'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/src/tokens/solana.tokenlist.json';
 
 // Local storage keys
 export const STORAGE_KEYS = {
@@ -46,8 +41,8 @@ export const ROUTES = {
 
 // Feature flags (for development)
 export const FEATURES = {
-  YIELD_FARMING: config.features.enableYieldFarming,
-  CROSS_CHAIN_DEPOSITS: config.features.enableCrossChainDeposits,
-  LENDING: config.features.enableLending,
+  YIELD_FARMING: false,
+  CROSS_CHAIN_DEPOSITS: false,
+  LENDING: false,
   CHARTS: true,
 };
